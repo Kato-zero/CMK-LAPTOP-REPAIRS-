@@ -1,0 +1,15 @@
+{
+  "name": "CMK Repairs Appointments",
+  "short_name": "CMK App",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#eef2f7",
+  "theme_color": "#007bff",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

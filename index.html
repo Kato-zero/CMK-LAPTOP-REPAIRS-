@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CMK REPAIRS APPOINTMENTS</title>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#007bff">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #eef2f7;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    .container {
+      max-width: 950px;
+      margin: auto;
+    }
+    form {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    form input, form button {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    form input:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0,123,255,0.3);
+    }
+    form button {
+      grid-column: span 2;
+      background: #007bff;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    form button:hover {
+      background: #0056b3;
+    }
+    #searchBar {
+      width: 100%;
+      padding: 12px;
+      margin: 20px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 14px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    tr:hover {
+      background: #f9f9f9;
+    }
+    tr.completed {
+      background: #d4edda;
+      text-decoration: line-through;
+      color: #155724;
+    }
+    .btn {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      margin: 2px;
+    }
+    .delete-btn {
+      background: #dc3545;
+      color: white;
+    }
+    .delete-btn:hover {
+      background: #b02a37;
+    }
+    .edit-btn {
+      background: #28a745;
+      color: white;
+    }
+    .edit-btn:hover {
+      background: #1e7e34;
+    }
+    .complete-btn {
+      background: #ffc107;
+      color: #212529;
+    }
+    .complete-btn:hover {
+      background: #e0a800;
+    }
+    .summary {
+      margin-top: 15px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CMK REPAIRS APPOINTMENTS</h1>
+    
+    <form id="appointmentForm">
+      <input type="text" id="name" placeholder="Client Name" required>
+      <input type="text" id="phone" placeholder="Phone Number" required>
+      <input type="text" id="repair" placeholder="Repair Needed" required>
+      <input type="date" id="day" required>
+      <input type="number" id="amount" placeholder="Amount" required>
+      <button type="submit">Save Appointment</button>
+    </form>
+  
+    <input type="text" id="searchBar" placeholder="Search by client name...">
+    
+    <table id="appointmentsTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Repair Needed</th>
+          <th>Day</th>
+          <th>Amount</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="summary" id="summary">
+      Total Completed Clients: 0 | Total Amount Collected: ZMW 0.00
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("appointmentForm");
+    const tableBody = document.querySelector("#appointmentsTable tbody");
+    const searchBar = document.getElementById("searchBar");
+    const summaryDiv = document.getElementById("summary");
+
+    let appointments = JSON.parse(localStorage.getItem("appointments")) || [];
+    let editIndex = -1; // -1 means add mode, not edit
+
+    function formatDate(dateStr) {
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return new Date(dateStr).toLocaleDateString(undefined, options);
+    }
+
+    function formatAmount(amount) {
+      return `ZMW ${parseFloat(amount).toFixed(2)}`;
+    }
+
+    function updateSummary() {
+      const completed = appointments.filter(appt => appt.completed);
+      const totalClients = completed.length;
+      const totalAmount = completed.reduce((sum, appt) => sum + parseFloat(appt.amount), 0);
+      summaryDiv.textContent = `Total Completed Clients: ${totalClients} | Total Amount Collected: ZMW ${totalAmount.toFixed(2)}`;
+    }
+
+    function renderAppointments(filterText = "") {
+      tableBody.innerHTML = "";
+      appointments
+        .filter(appt => appt.name.toLowerCase().includes(filterText.toLowerCase()))
+        .forEach((appt, index) => {
+          const row = document.createElement("tr");
+          if(appt.completed) row.classList.add("completed");
+          row.innerHTML = `
+            <td>${appt.name}</td>
+            <td>${appt.phone}</td>
+            <td>${appt.repair}</td>
+            <td>${formatDate(appt.day)}</td>
+            <td>${formatAmount(appt.amount)}</td>
+            <td>
+              <button class="btn edit-btn" onclick="editAppointment(${index})">Edit</button>
+              <button class="btn delete-btn" onclick="deleteAppointment(${index})">Delete</button>
+              <button class="btn complete-btn" onclick="toggleCompleted(${index})">${appt.completed ? "Undo" : "Complete"}</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      updateSummary();
+    }
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const appointment = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        repair: document.getElementById("repair").value,
+        day: document.getElementById("day").value,
+        amount: document.getElementById("amount").value,
+        completed: false
+      };
+
+      if(editIndex === -1) {
+        appointments.push(appointment);
+      } else {
+        appointment.completed = appointments[editIndex].completed;
+        appointments[editIndex] = appointment;
+        editIndex = -1;
+      }
+
+      localStorage.setItem("appointments", JSON.stringify(appointments));
+      renderAppointments(searchBar.value);
+      form.reset();
+    });
+
+    function deleteAppointment(index) {
+      appointments.splice(index, 1);
+      localStorage.setItem("appointments", JSON.stringify(appointments));
+      renderAppointments(searchBar.value);
+    }
+
+    function editAppointment(index) {
+      const appt = appointments[index];
+      document.getElementById("name").value = appt.name;
+      document.getElementById("phone").value = appt.phone;
+      document.getElementById("repair").value = appt.repair;
+      document.getElementById("day").value = appt.day;
+      document.getElementById("amount").value = appt.amount;
+      editIndex = index;
+    }
+
+    function toggleCompleted(index) {
+      appointments[index].completed = !appointments[index].completed;
+      localStorage.setItem("appointments", JSON.stringify(appointments));
+      renderAppointments(searchBar.value);
+    }
+
+    searchBar.addEventListener("input", function() {
+      renderAppointments(searchBar.value);
+    });
+
+    renderAppointments();
+  </script>
+</body>
+</html>

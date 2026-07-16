@@ -152,6 +152,15 @@
     .badge-modern { background: var(--surface-2); border: 1px solid var(--border); padding: 6px 14px; border-radius: 40px; font-size: 0.75rem; color: var(--muted); }
     .shared-note { font-size: 0.72rem; color: var(--muted); text-align: center; margin: -6px 0 20px; }
 
+    .shop-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); margin-bottom: 8px;
+    }
+    .shop-row:last-child { margin-bottom: 0; }
+    .shop-row-name { font-weight: 600; font-size: 0.9rem; }
+    .shop-row-pin { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
     .exit-staff-btn {
       background: var(--surface); border: 1px solid var(--border); color: var(--muted);
       font-size: 0.78rem; font-weight: 600; padding: 10px 16px; border-radius: 40px;
@@ -319,6 +328,20 @@
 
     <div class="form-card">
       <div class="form-title">
+        <span>Manage shops</span>
+      </div>
+      <form id="shopManageForm" class="appointment-form" style="margin-bottom:16px;">
+        <div class="input-group"><label>Shop name</label><input type="text" id="newShopName" placeholder="e.g. Levy Junction" required></div>
+        <div class="input-group"><label>PIN</label><input type="text" id="newShopPin" placeholder="4-digit PIN" inputmode="numeric" required></div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="addShopBtn">Add shop</button>
+        </div>
+      </form>
+      <div id="shopManageList"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title">
         <span id="formModeText">New job</span>
         <span id="editModeChip" class="edit-mode-badge" style="display:none;">Editing</span>
       </div>
@@ -463,12 +486,8 @@
   const PAY_URL = "https://dashboard.lipila.io/pay/?id=C417B31870164B2";
   const STAGES = ["Received", "Diagnosing", "Repairing", "Ready for Pickup", "Completed"];
 
-  // Each shop gets its own PIN. Add/remove/edit shops here.
-  const SHOPS = [
-    { name: "Cairo Road", pin: "1111" },
-    { name: "Kabulonga", pin: "2222" },
-    { name: "Manda Hill", pin: "3333" }
-  ];
+  // Shops are loaded from Supabase (see fetchShops). Each is { id, name, pin }.
+  let SHOPS = [];
 
   // ---------- state ----------
   let appointments = [];
@@ -507,6 +526,71 @@
   function populateShopSelects() {
     jobShopSelect.innerHTML = SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
     shopFilterSelect.innerHTML = `<option value="all">All shops</option>` + SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
+  }
+
+  const shopManageForm = document.getElementById("shopManageForm");
+  const shopManageList = document.getElementById("shopManageList");
+
+  function renderShopManageList() {
+    if (SHOPS.length === 0) {
+      shopManageList.innerHTML = `<div class="shared-note" style="margin:0;">No shops yet — add one above.</div>`;
+      return;
+    }
+    shopManageList.innerHTML = SHOPS.map(s => {
+      const jobCount = appointments.filter(a => a.shop === s.name).length;
+      return `<div class="shop-row">
+        <div>
+          <div class="shop-row-name">${escapeHtml(s.name)}</div>
+          <div class="shop-row-pin">PIN ${escapeHtml(s.pin)} · ${jobCount} job${jobCount === 1 ? '' : 's'}</div>
+        </div>
+        <button type="button" class="action-btn btn-delete" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Delete</button>
+      </div>`;
+    }).join("");
+    shopManageList.querySelectorAll('[data-shop-id]').forEach(btn => btn.addEventListener('click', handleDeleteShop));
+  }
+
+  shopManageForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameInput = document.getElementById("newShopName");
+    const pinInput = document.getElementById("newShopPin");
+    const name = nameInput.value.trim();
+    const pin = pinInput.value.trim();
+
+    if (!name || !pin) { showToast("Enter a shop name and PIN"); return; }
+    if (pin === ADMIN_PIN || SHOPS.some(s => s.pin === pin)) { showToast("That PIN is already in use"); return; }
+    if (SHOPS.some(s => s.name.toLowerCase() === name.toLowerCase())) { showToast("A shop with that name already exists"); return; }
+
+    const created = await addShopDB({ name, pin });
+    if (created) {
+      SHOPS.push(created);
+      SHOPS.sort((a, b) => a.name.localeCompare(b.name));
+      populateShopSelects();
+      renderShopManageList();
+      shopManageForm.reset();
+      showToast(`Shop "${name}" added`);
+    } else {
+      showToast("Error adding shop");
+    }
+  });
+
+  async function handleDeleteShop(e) {
+    const id = e.currentTarget.getAttribute('data-shop-id');
+    const name = e.currentTarget.getAttribute('data-shop-name');
+    const jobCount = appointments.filter(a => a.shop === name).length;
+    const warning = jobCount > 0
+      ? `"${name}" has ${jobCount} job${jobCount === 1 ? '' : 's'} on record. Deleting it won't remove those jobs, but the shop login (PIN) will stop working. Continue?`
+      : `Delete "${name}"? This can't be undone.`;
+    if (!confirm(warning)) return;
+
+    const ok = await deleteShopDB(id);
+    if (ok) {
+      SHOPS = SHOPS.filter(s => s.id !== id);
+      populateShopSelects();
+      renderShopManageList();
+      showToast(`Shop "${name}" deleted`);
+    } else {
+      showToast("Error deleting shop");
+    }
   }
 
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
@@ -549,6 +633,25 @@
 
   async function deleteAppointment(id) {
     const { error } = await supabase.from('repairs').delete().eq('id', id);
+    if (error) { console.error(error); return false; }
+    return true;
+  }
+
+  // ---------- Supabase CRUD: shops ----------
+  async function fetchShops() {
+    const { data, error } = await supabase.from('shops').select('*').order('name', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+
+  async function addShopDB(record) {
+    const { data, error } = await supabase.from('shops').insert([record]).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function deleteShopDB(id) {
+    const { error } = await supabase.from('shops').delete().eq('id', id);
     if (error) { console.error(error); return false; }
     return true;
   }
@@ -812,7 +915,7 @@
     document.getElementById("day").value = appt.day;
     document.getElementById("amount").value = appt.amount;
     document.getElementById("status").value = appt.status;
-    jobShopSelect.value = appt.shop || SHOPS[0].name;
+    jobShopSelect.value = appt.shop || (SHOPS[0] ? SHOPS[0].name : "");
     editId = id;
     formModeText.textContent = "Edit job";
     editModeChip.style.display = "inline-block";
@@ -1010,9 +1113,12 @@
 
   // ---------- init ----------
   (async function init() {
-    populateShopSelects();
     await initTheme();
-    // load from Supabase
+    // load shops first so PIN checks and dropdowns are ready
+    SHOPS = await fetchShops();
+    populateShopSelects();
+    renderShopManageList();
+    // load appointments from Supabase
     const data = await fetchAppointments();
     if (data.length) {
       appointments = data;
@@ -1026,6 +1132,7 @@
       }
     }
     renderAppointments();
+    renderShopManageList();
     setView("client");
     if (location.hash === "#staff") openStaffModal();
   })();

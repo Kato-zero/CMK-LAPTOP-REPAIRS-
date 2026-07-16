@@ -1,15 +1,23 @@
 {
-  "name": "CMK Repairs Appointments",
-  "short_name": "CMK App",
+  "name": "CMK Repairs Job Board",
+  "short_name": "CMK Repairs",
   "start_url": "index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#eef2f7",
-  "theme_color": "#007bff",
+  "background_color": "#f2f4f7",
+  "theme_color": "#0d7d72",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

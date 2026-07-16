@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CMK Repairs · Job Board &amp; Repair Tracker</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d7d72">
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CMK Repairs">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ----- same look & feel, only updated for Supabase sync ----- */
+    :root {
+      --bg: #f2f4f7;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #e4e8ee;
+      --text: #12161c;
+      --muted: #667080;
+      --accent: #0d7d72;
+      --accent-strong: #095c54;
+      --accent-soft: #e3f4f1;
+      --amber: #b3690a;
+      --amber-soft: #fdf1de;
+      --blue: #2563a8;
+      --blue-soft: #e5eefb;
+      --danger: #c22e2e;
+      --danger-soft: #fbe6e6;
+      --shadow: 0 1px 2px rgba(15,23,32,0.04), 0 8px 24px rgba(15,23,32,0.05);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+    [data-theme="dark"] {
+      --bg: #0b0f13;
+      --surface: #12181f;
+      --surface-2: #161d25;
+      --border: #232b34;
+      --text: #e9edf2;
+      --muted: #8b96a3;
+      --accent: #29c2af;
+      --accent-strong: #4fd8c6;
+      --accent-soft: #10302c;
+      --amber: #e0a63f;
+      --amber-soft: #2e2313;
+      --blue: #6ba7e8;
+      --blue-soft: #182636;
+      --danger: #ef6a6a;
+      --danger-soft: #331717;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px 16px 64px;
+      transition: background 0.25s ease, color 0.25s ease;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .app-container { max-width: 1240px; margin: 0 auto; }
+
+    .dashboard-header {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 14px; margin-bottom: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .brand-mark svg { width: 22px; height: 22px; }
+    .brand h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
+    .brand p { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .theme-toggle {
+      width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text); box-shadow: var(--shadow); flex-shrink: 0;
+    }
+    .theme-toggle svg { width: 19px; height: 19px; }
+    .export-btn {
+      display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.78rem; font-weight: 600; padding: 10px 16px; border-radius: 40px;
+      cursor: pointer; box-shadow: var(--shadow); white-space: nowrap;
+    }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); }
+    .kpi-title { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 10px; }
+    .kpi-value { font-family: 'JetBrains Mono', monospace; font-size: 1.7rem; font-weight: 600; line-height: 1.2; margin-bottom: 6px; }
+    .kpi-sub { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+    .kpi-sub.pos { color: var(--accent); }
+
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 22px; box-shadow: var(--shadow); }
+    .form-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.05rem; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+    .edit-mode-badge { background: var(--amber-soft); color: var(--amber); font-size: 0.68rem; font-weight: 700; padding: 4px 12px; border-radius: 40px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .appointment-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; align-items: end; }
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+    .input-group label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .appointment-form input, .appointment-form select {
+      padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      font-size: 0.9rem; background: var(--surface-2); color: var(--text); font-family: inherit;
+    }
+    .appointment-form input:focus, .appointment-form select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .form-actions { display: flex; gap: 8px; }
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none; padding: 12px 20px; border-radius: 40px;
+      font-weight: 600; font-size: 0.84rem; cursor: pointer; display: inline-flex; align-items: center;
+      justify-content: center; gap: 8px; white-space: nowrap; flex: 1;
+    }
+    .btn-primary:hover { background: var(--accent-strong); }
+    .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 12px 16px; border-radius: 40px; font-weight: 600; font-size: 0.84rem; cursor: pointer; }
+
+    .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 16px; gap: 10px; }
+    .search-wrapper { flex: 2; min-width: 200px; position: relative; }
+    .search-wrapper svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--muted); pointer-events: none; }
+    .search-wrapper input { width: 100%; padding: 11px 16px 11px 40px; border-radius: 48px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.85rem; font-family: inherit; }
+    .search-wrapper input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-chip { background: var(--surface); border: 1px solid var(--border); padding: 8px 16px; border-radius: 40px; font-size: 0.78rem; font-weight: 600; cursor: pointer; color: var(--muted); white-space: nowrap; }
+    .filter-chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    .table-container { background: var(--surface); border-radius: var(--radius-lg); overflow-x: auto; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .appointments-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 780px; }
+    .appointments-table th { text-align: left; padding: 16px; background: var(--surface-2); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .appointments-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .appointments-table tr:last-child td { border-bottom: none; }
+    .appointments-table tr:hover td { background: var(--surface-2); }
+    tr.completed-row td { opacity: 0.75; }
+    .amount-cell { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+    .track-id { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.78rem; background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 6px; cursor: pointer; }
+    .track-id:hover { border-color: var(--accent); color: var(--accent); }
+    .status-select {
+      font-size: 0.75rem; font-weight: 600; padding: 6px 10px; border-radius: 40px; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer;
+    }
+    .btn-icon-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .action-btn { border: none; font-size: 0.72rem; font-weight: 600; padding: 6px 12px; border-radius: 40px; cursor: pointer; font-family: inherit; }
+    .btn-edit { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-delete { background: var(--danger-soft); color: var(--danger); }
+
+    .empty-state { text-align: center; padding: 56px 20px; color: var(--muted); }
+    .empty-state .emoji { font-size: 2rem; margin-bottom: 10px; }
+    .loading-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 0.85rem; }
+
+    .insights-footer { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--surface); border-radius: var(--radius-md); padding: 14px 22px; border: 1px solid var(--border); }
+    .revenue-summary { font-size: 0.84rem; color: var(--muted); }
+    .revenue-highlight { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); font-size: 1.05rem; }
+    .badge-modern { background: var(--surface-2); border: 1px solid var(--border); padding: 6px 14px; border-radius: 40px; font-size: 0.75rem; color: var(--muted); }
+    .shared-note { font-size: 0.72rem; color: var(--muted); text-align: center; margin: -6px 0 20px; }
+
+    .shop-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface-2); margin-bottom: 8px;
+    }
+    .shop-row:last-child { margin-bottom: 0; }
+    .shop-row-name { font-weight: 600; font-size: 0.9rem; }
+    .shop-row-pin { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+    .paid-badge { background: var(--accent-soft); color: var(--accent); font-size: 0.7rem; font-weight: 700; padding: 5px 12px; border-radius: 40px; white-space: nowrap; display: inline-block; }
+    .track-id.voided { text-decoration: line-through; opacity: 0.55; cursor: default; }
+    .btn-confirm-pay { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+
+    .shop-pin-input {
+      padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;
+      width: 110px;
+    }
+    .shop-pin-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .btn-save-pin { background: var(--accent); color: #fff; }
+
+    .exit-staff-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+      font-size: 0.78rem; font-weight: 600; padding: 10px 16px; border-radius: 40px;
+      cursor: pointer; box-shadow: var(--shadow); white-space: nowrap;
+    }
+    .exit-staff-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    .staff-footer { text-align: center; margin-top: 40px; }
+    .staff-footer button {
+      background: none; border: none; color: var(--muted); font-size: 0.74rem;
+      text-decoration: underline; cursor: pointer; font-family: inherit; opacity: 0.7;
+    }
+    .staff-footer button:hover { opacity: 1; color: var(--accent); }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(10,14,18,0.5); backdrop-filter: blur(2px);
+      display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+    }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 26px; width: 100%; max-width: 340px; box-shadow: var(--shadow);
+    }
+    .modal-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.1rem; margin-bottom: 6px; }
+    .modal-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; }
+    #staffPinForm input {
+      width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text); font-size: 1rem; letter-spacing: 0.15em;
+      font-family: inherit; margin-bottom: 16px; text-align: center;
+    }
+    #staffPinForm input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions .btn-primary, .modal-actions .btn-cancel { flex: 1; padding: 11px 16px; }
+
+    #clientView { max-width: 640px; margin: 0 auto; }
+    .client-hero { text-align: center; margin-bottom: 26px; }
+    .client-hero h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; margin-bottom: 6px; }
+    .client-hero p { color: var(--muted); font-size: 0.88rem; }
+    .track-form { display: flex; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 40px; padding: 6px; box-shadow: var(--shadow); margin-bottom: 10px; }
+    .track-form input { flex: 1; border: none; background: transparent; padding: 10px 16px; font-size: 0.9rem; color: var(--text); font-family: inherit; }
+    .track-form input:focus { outline: none; }
+    .track-form button { background: var(--accent); color: #fff; border: none; padding: 12px 22px; border-radius: 40px; font-weight: 600; font-size: 0.84rem; cursor: pointer; white-space: nowrap; }
+    .track-form button:hover { background: var(--accent-strong); }
+    .track-hint { text-align: center; font-size: 0.74rem; color: var(--muted); margin-bottom: 28px; }
+
+    .result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+    .result-repair { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.15rem; }
+    .result-meta { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+    .tracker-steps { display: flex; align-items: flex-start; margin: 8px 0 20px; }
+    .tracker-step { flex: 1; text-align: center; position: relative; }
+    .tracker-step:not(:last-child)::after {
+      content: ''; position: absolute; top: 14px; left: calc(50% + 18px); width: calc(100% - 36px); height: 2px; background: var(--border);
+    }
+    .tracker-step.done:not(:last-child)::after { background: var(--accent); }
+    .step-dot {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 0.68rem; font-weight: 700; color: var(--muted); position: relative; z-index: 1;
+    }
+    .tracker-step.done .step-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tracker-step.current .step-dot { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .step-label { font-size: 0.64rem; font-weight: 600; color: var(--muted); line-height: 1.25; padding: 0 2px; }
+    .tracker-step.done .step-label, .tracker-step.current .step-label { color: var(--text); }
+
+    .result-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+    .detail-item { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; }
+    .detail-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 4px; }
+    .detail-value { font-weight: 600; font-size: 0.92rem; }
+
+    .payment-box {
+      background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius-md);
+      padding: 18px 20px; margin-top: 6px; text-align: center;
+    }
+    .payment-box .payment-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .payment-box .payment-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+    .btn-pay {
+      display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: #fff;
+      padding: 13px 26px; border-radius: 40px; font-weight: 700; font-size: 0.88rem; text-decoration: none;
+    }
+    .btn-pay:hover { background: var(--accent-strong); }
+    .waiting-note { text-align: center; font-size: 0.8rem; color: var(--muted); padding-top: 4px; }
+
+    #toast {
+      position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 40px;
+      font-size: 0.82rem; font-weight: 600; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+      transition: all 0.25s ease; z-index: 50; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 720px) {
+      body { padding: 14px 10px 56px; }
+      .brand h1 { font-size: 1.15rem; }
+      .form-card, .kpi-card { padding: 16px; }
+      .appointment-form { grid-template-columns: 1fr 1fr; }
+      .form-actions { grid-column: 1 / -1; }
+      .table-container { border: none; background: transparent; box-shadow: none; overflow: visible; }
+      .appointments-table, .appointments-table thead, .appointments-table tbody, .appointments-table th, .appointments-table td, .appointments-table tr { display: block; }
+      .appointments-table { min-width: 0; }
+      .appointments-table thead { display: none; }
+      .appointments-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+      .appointments-table td { border: none; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: right; }
+      .appointments-table td::before { content: attr(data-label); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); text-align: left; }
+      .appointments-table td.name-cell { font-weight: 600; font-size: 0.95rem; }
+      .btn-icon-group { justify-content: flex-end; width: 100%; }
+      .insights-footer { flex-direction: column; align-items: flex-start; }
+      .result-details { grid-template-columns: 1fr; }
+      .step-label { display: none; }
+      .track-form { flex-wrap: wrap; }
+      .track-form input { flex-basis: 100%; }
+      .track-form button { flex: 1; }
+    }
+    @media (max-width: 420px) { .appointment-form { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="app-container">
+
+  <div class="dashboard-header">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <div>
+        <h1>CMK Repairs</h1>
+        <p id="brandSub">Job board &amp; revenue tracker</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="export-btn" id="exportBtn" title="Export as CSV" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="exit-staff-btn" id="exitStaffBtn" title="Return to client view" style="display:none;">Exit staff view</button>
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ADMIN VIEW (full dashboard, all shops) -->
+  <div id="adminView" style="display:none;">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Collected</div>
+        <div class="kpi-value mono" id="totalCollectedKpi">ZMW 0.00</div>
+        <div class="kpi-sub">from completed jobs</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Active jobs</div>
+        <div class="kpi-value mono" id="activeAppointmentsKpi">0</div>
+        <div class="kpi-sub" id="todayText">0 due today</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Completed</div>
+        <div class="kpi-value mono" id="completedJobsKpi">0</div>
+        <div class="kpi-sub" id="avgTicketText">avg ticket ZMW 0.00</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">This month</div>
+        <div class="kpi-value mono" id="monthRevenueKpi">ZMW 0.00</div>
+        <div class="kpi-sub pos">revenue collected</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title">
+        <span>Manage shops</span>
+      </div>
+      <form id="shopManageForm" class="appointment-form" style="margin-bottom:16px;">
+        <div class="input-group"><label>Shop name</label><input type="text" id="newShopName" placeholder="e.g. Levy Junction" required></div>
+        <div class="input-group"><label>PIN</label><input type="text" id="newShopPin" placeholder="4-digit PIN" inputmode="numeric" required></div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="addShopBtn">Add shop</button>
+        </div>
+      </form>
+      <div id="shopManageList"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title">
+        <span>Admin security</span>
+      </div>
+      <form id="adminPinForm" class="appointment-form">
+        <div class="input-group"><label>Current PIN</label><input type="password" inputmode="numeric" id="currentAdminPin" placeholder="Current PIN" required></div>
+        <div class="input-group"><label>New PIN</label><input type="password" inputmode="numeric" id="newAdminPin" placeholder="New PIN" required></div>
+        <div class="input-group"><label>Confirm new PIN</label><input type="password" inputmode="numeric" id="confirmAdminPin" placeholder="Confirm new PIN" required></div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="updateAdminPinBtn">Update PIN</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title">
+        <span id="formModeText">New job</span>
+        <span id="editModeChip" class="edit-mode-badge" style="display:none;">Editing</span>
+      </div>
+      <form id="appointmentForm" class="appointment-form">
+        <div class="input-group"><label>Client name</label><input type="text" id="name" placeholder="e.g. James Mwila" required></div>
+        <div class="input-group"><label>Phone</label><input type="text" id="phone" placeholder="+260 XXX XXX XXX" required></div>
+        <div class="input-group"><label>Repair needed</label><input type="text" id="repair" placeholder="Screen / Battery / Charger" required></div>
+        <div class="input-group"><label>Date</label><input type="date" id="day" required></div>
+        <div class="input-group"><label>Amount (ZMW)</label><input type="number" id="amount" placeholder="0.00" step="0.01" min="0" required></div>
+        <div class="input-group">
+          <label>Shop</label>
+          <select id="jobShop" required></select>
+        </div>
+        <div class="input-group">
+          <label>Status</label>
+          <select id="status">
+            <option>Received</option>
+            <option>Diagnosing</option>
+            <option>Repairing</option>
+            <option>Ready for Pickup</option>
+            <option>Completed</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submitBtn">Save job</button>
+          <button type="button" class="btn-cancel" id="cancelEditBtn" style="display:none;">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="action-bar">
+      <div class="search-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchBar" placeholder="Search by name, phone, repair, or ID…">
+      </div>
+      <select id="shopFilterSelect" class="status-select" style="flex-shrink:0;">
+        <option value="all">All shops</option>
+      </select>
+      <div class="filter-group">
+        <div class="filter-chip active" data-filter="all">All</div>
+        <div class="filter-chip" data-filter="pending">In progress</div>
+        <div class="filter-chip" data-filter="completed">Completed</div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="appointments-table" id="appointmentsTable">
+        <thead>
+          <tr><th>Client</th><th>Tracking ID</th><th>Shop</th><th>Contact</th><th>Repair</th><th>Date</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="10"><div class="loading-state">Loading jobs…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="insights-footer">
+      <div class="revenue-summary">Business snapshot — <span id="totalCountText">0 jobs on record</span></div>
+      <div class="badge-modern" id="avgTicketSpan">Average ticket: ZMW 0.00</div>
+      <div class="revenue-summary">Collected: <span id="footerCollected" class="revenue-highlight">ZMW 0.00</span></div>
+    </div>
+  </div>
+
+  <!-- SHOP DROP-OFF VIEW (single shop, register + view their own jobs) -->
+  <div id="shopDropoffView" style="display:none; max-width: 780px; margin: 0 auto;">
+    <div class="client-hero">
+      <h2 id="shopViewTitle">Shop</h2>
+      <p>Register a client dropping off their laptop at this shop.</p>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title"><span>Register drop-off</span></div>
+      <form id="shopDropoffForm" class="appointment-form">
+        <div class="input-group"><label>Client name</label><input type="text" id="sd_name" placeholder="e.g. James Mwila" required></div>
+        <div class="input-group"><label>Phone</label><input type="text" id="sd_phone" placeholder="+260 XXX XXX XXX" required></div>
+        <div class="input-group"><label>Repair needed</label><input type="text" id="sd_repair" placeholder="Screen / Battery / Charger" required></div>
+        <div class="input-group"><label>Date</label><input type="date" id="sd_day" required></div>
+        <div class="input-group"><label>Amount (ZMW)</label><input type="number" id="sd_amount" placeholder="0.00" step="0.01" min="0" required></div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="sdSubmitBtn">Register client</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="action-bar">
+      <div class="search-wrapper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="shopSearchBar" placeholder="Search by name, phone, repair, or ID…">
+      </div>
+    </div>
+
+    <div id="shopDropoffList"></div>
+  </div>
+
+  <!-- CLIENT VIEW -->
+  <div id="clientView">
+    <div class="client-hero">
+      <h2>Track your repair</h2>
+      <p>Enter the tracking ID from your receipt, or the phone number you gave us.</p>
+    </div>
+    <form id="trackForm" class="track-form">
+      <input type="text" id="trackQuery" placeholder="e.g. CMK-4F92K or 0977 123 456" required>
+      <button type="submit">Search</button>
+    </form>
+    <p class="track-hint">Can't find your repair? Ask the shop for your tracking ID.</p>
+    <div id="trackResults"></div>
+  </div>
+
+  <div class="staff-footer">
+    <button id="staffLoginLink" type="button">Staff sign in</button>
+  </div>
+
+</div>
+
+<!-- STAFF PIN MODAL -->
+<div id="staffModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Staff sign in</div>
+    <p class="modal-sub">Enter your admin or shop PIN to continue.</p>
+    <form id="staffPinForm">
+      <input type="password" inputmode="numeric" id="staffPinInput" placeholder="PIN" autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="staffModalCancel">Cancel</button>
+        <button type="submit" class="btn-primary">Sign in</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------- Supabase ----------
+  const SUPABASE_URL = 'https://zmplzjbbsbkbwkvhpfth.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptcGx6amJic2JrYndrdmhwZnRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNjIyODgsImV4cCI6MjA4NDkzODI4OH0.E4DW4ApG5Okc09WMKA3QzsOTjurzc_QK_9MR2emaDqc';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- constants ----------
+  const STORAGE_KEY = "cmk_appointments";      // fallback / local cache
+  const THEME_KEY = "cmk_theme";
+  const SESSION_KEY = "cmk_session";           // persisted staff login
+  const INACTIVITY_MS = 5 * 60 * 1000;         // auto sign-out after 5 min idle
+  const PAY_URL = "https://dashboard.lipila.io/pay/?id=C417B31870164B2";
+  const STAGES = ["Received", "Diagnosing", "Repairing", "Ready for Pickup", "Completed"];
+
+  // Shops are loaded from Supabase (see fetchShops). Each is { id, name, pin }.
+  let SHOPS = [];
+
+  // ---------- state ----------
+  let appointments = [];
+  let editId = null;
+  let currentFilter = "all";
+  let currentRole = null;   // "admin" | "shop" | null
+  let currentShop = null;   // shop name string, only when currentRole === "shop"
+
+  // ---------- DOM refs ----------
+  const form = document.getElementById("appointmentForm");
+  const tbody = document.getElementById("tableBody");
+  const searchInput = document.getElementById("searchBar");
+  const formModeText = document.getElementById("formModeText");
+  const editModeChip = document.getElementById("editModeChip");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const submitBtn = document.getElementById("submitBtn");
+  const toast = document.getElementById("toast");
+  const brandSub = document.getElementById("brandSub");
+  const shopFilterSelect = document.getElementById("shopFilterSelect");
+  const jobShopSelect = document.getElementById("jobShop");
+  const shopDropoffForm = document.getElementById("shopDropoffForm");
+  const shopDropoffList = document.getElementById("shopDropoffList");
+  const shopSearchBar = document.getElementById("shopSearchBar");
+  const shopViewTitle = document.getElementById("shopViewTitle");
+
+  const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+  const moonPath = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
+  }
+
+  // ---------- session persistence (stay signed in until logout or 5 min idle) ----------
+  function saveSession(role, shopName) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ role, shopName: shopName || null, lastActivity: Date.now() }));
+  }
+  function getSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  }
+  function touchSession() {
+    const session = getSession();
+    if (!session) return;
+    session.lastActivity = Date.now();
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+  function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+  }
+
+  let sessionWatcherId = null;
+  function startSessionWatcher() {
+    stopSessionWatcher();
+    sessionWatcherId = setInterval(() => {
+      const session = getSession();
+      if (!session || Date.now() - session.lastActivity > INACTIVITY_MS) {
+        handleAutoLogout();
+      }
+    }, 15000);
+  }
+  function stopSessionWatcher() {
+    if (sessionWatcherId) clearInterval(sessionWatcherId);
+    sessionWatcherId = null;
+  }
+  function handleAutoLogout() {
+    clearSession();
+    stopSessionWatcher();
+    setView("client");
+    showToast("Signed out after 5 minutes of inactivity");
+  }
+
+  // Any real user interaction resets the idle clock, throttled to avoid excess writes.
+  let lastActivityWrite = 0;
+  function markActivity() {
+    if (currentRole !== "admin" && currentRole !== "shop") return;
+    const now = Date.now();
+    if (now - lastActivityWrite < 5000) return;
+    lastActivityWrite = now;
+    touchSession();
+  }
+  ["mousemove", "mousedown", "keydown", "touchstart", "scroll"].forEach(evt =>
+    document.addEventListener(evt, markActivity, { passive: true })
+  );
+
+  function populateShopSelects() {
+    jobShopSelect.innerHTML = SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
+    shopFilterSelect.innerHTML = `<option value="all">All shops</option>` + SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
+  }
+
+  const shopManageForm = document.getElementById("shopManageForm");
+  const shopManageList = document.getElementById("shopManageList");
+  let editingShopId = null;
+
+  function renderShopManageList() {
+    if (SHOPS.length === 0) {
+      shopManageList.innerHTML = `<div class="shared-note" style="margin:0;">No shops yet — add one above.</div>`;
+      return;
+    }
+    shopManageList.innerHTML = SHOPS.map(s => {
+      const jobCount = appointments.filter(a => a.shop === s.name).length;
+      if (s.id === editingShopId) {
+        return `<div class="shop-row">
+          <div>
+            <div class="shop-row-name">${escapeHtml(s.name)}</div>
+            <div class="shop-row-pin" style="margin-top:6px;">
+              <input type="text" class="shop-pin-input" id="editPinInput_${s.id}" inputmode="numeric" placeholder="New PIN" value="${escapeHtml(s.pin)}">
+            </div>
+          </div>
+          <div class="btn-icon-group">
+            <button type="button" class="action-btn btn-save-pin" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Save</button>
+            <button type="button" class="action-btn btn-edit" data-cancel-edit-pin="1">Cancel</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="shop-row">
+        <div>
+          <div class="shop-row-name">${escapeHtml(s.name)}</div>
+          <div class="shop-row-pin">PIN ${escapeHtml(s.pin)} · ${jobCount} job${jobCount === 1 ? '' : 's'}</div>
+        </div>
+        <div class="btn-icon-group">
+          <button type="button" class="action-btn btn-edit" data-edit-pin-id="${s.id}">Change PIN</button>
+          <button type="button" class="action-btn btn-delete" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+    shopManageList.querySelectorAll('[data-shop-id]').forEach(btn => btn.addEventListener('click', e => {
+      if (e.currentTarget.classList.contains('btn-save-pin')) handleSaveShopPin(e);
+      else handleDeleteShop(e);
+    }));
+    shopManageList.querySelectorAll('[data-edit-pin-id]').forEach(btn => btn.addEventListener('click', e => {
+      editingShopId = e.currentTarget.getAttribute('data-edit-pin-id');
+      renderShopManageList();
+    }));
+    shopManageList.querySelectorAll('[data-cancel-edit-pin]').forEach(btn => btn.addEventListener('click', () => {
+      editingShopId = null;
+      renderShopManageList();
+    }));
+  }
+
+  async function handleSaveShopPin(e) {
+    const id = e.currentTarget.getAttribute('data-shop-id');
+    const name = e.currentTarget.getAttribute('data-shop-name');
+    const input = document.getElementById(`editPinInput_${id}`);
+    const newPin = input.value.trim();
+
+    if (!newPin) { showToast("Enter a PIN"); return; }
+    if (newPin === ADMIN_PIN || SHOPS.some(s => s.pin === newPin && s.id !== id)) {
+      showToast("That PIN is already in use");
+      return;
+    }
+
+    const updated = await updateShopDB(id, { pin: newPin });
+    if (updated) {
+      const idx = SHOPS.findIndex(s => s.id === id);
+      if (idx > -1) SHOPS[idx] = updated;
+      editingShopId = null;
+      renderShopManageList();
+      showToast(`PIN updated for "${name}"`);
+    } else {
+      showToast("Error updating PIN");
+    }
+  }
+
+  shopManageForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameInput = document.getElementById("newShopName");
+    const pinInput = document.getElementById("newShopPin");
+    const name = nameInput.value.trim();
+    const pin = pinInput.value.trim();
+
+    if (!name || !pin) { showToast("Enter a shop name and PIN"); return; }
+    if (pin === ADMIN_PIN || SHOPS.some(s => s.pin === pin)) { showToast("That PIN is already in use"); return; }
+    if (SHOPS.some(s => s.name.toLowerCase() === name.toLowerCase())) { showToast("A shop with that name already exists"); return; }
+
+    const created = await addShopDB({ name, pin });
+    if (created) {
+      SHOPS.push(created);
+      SHOPS.sort((a, b) => a.name.localeCompare(b.name));
+      populateShopSelects();
+      renderShopManageList();
+      shopManageForm.reset();
+      showToast(`Shop "${name}" added`);
+    } else {
+      showToast("Error adding shop");
+    }
+  });
+
+  async function handleDeleteShop(e) {
+    const id = e.currentTarget.getAttribute('data-shop-id');
+    const name = e.currentTarget.getAttribute('data-shop-name');
+    const jobCount = appointments.filter(a => a.shop === name).length;
+    const warning = jobCount > 0
+      ? `"${name}" has ${jobCount} job${jobCount === 1 ? '' : 's'} on record. Deleting it won't remove those jobs, but the shop login (PIN) will stop working. Continue?`
+      : `Delete "${name}"? This can't be undone.`;
+    if (!confirm(warning)) return;
+
+    const ok = await deleteShopDB(id);
+    if (ok) {
+      SHOPS = SHOPS.filter(s => s.id !== id);
+      populateShopSelects();
+      renderShopManageList();
+      showToast(`Shop "${name}" deleted`);
+    } else {
+      showToast("Error deleting shop");
+    }
+  }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+  function formatDisplayDate(dateStr) {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function isCurrentMonth(dateStr) {
+    const today = new Date(); const d = new Date(dateStr + "T00:00:00");
+    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+  }
+  function isToday(dateStr) { return dateStr === new Date().toISOString().slice(0, 10); }
+  function uid() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function makeTrackingId() {
+    const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    let code = "";
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return "CMK-" + code;
+  }
+
+  // ---------- Supabase CRUD ----------
+  async function fetchAppointments() {
+    const { data, error } = await supabase.from('repairs').select('*').order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+
+  async function addAppointment(record) {
+    const { data, error } = await supabase.from('repairs').insert([record]).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function updateAppointment(id, updates) {
+    const { data, error } = await supabase.from('repairs').update(updates).eq('id', id).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function deleteAppointment(id) {
+    const { error } = await supabase.from('repairs').delete().eq('id', id);
+    if (error) { console.error(error); return false; }
+    return true;
+  }
+
+  // ---------- Supabase CRUD: shops ----------
+  async function fetchShops() {
+    const { data, error } = await supabase.from('shops').select('*').order('name', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+
+  async function addShopDB(record) {
+    const { data, error } = await supabase.from('shops').insert([record]).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function updateShopDB(id, updates) {
+    const { data, error } = await supabase.from('shops').update(updates).eq('id', id).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function deleteShopDB(id) {
+    const { error } = await supabase.from('shops').delete().eq('id', id);
+    if (error) { console.error(error); return false; }
+    return true;
+  }
+
+  // ---------- Supabase CRUD: app settings (admin PIN) ----------
+  async function fetchAdminPin() {
+    const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').maybeSingle();
+    if (error) { console.error(error); return null; }
+    return data ? data.value : null;
+  }
+
+  async function updateAdminPinDB(newPin) {
+    const { data, error } = await supabase.from('app_settings').update({ value: newPin }).eq('key', 'admin_pin').select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  // ---------- theme ----------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.getElementById("themeIcon").innerHTML = theme === "dark" ? sunPath : moonPath;
+  }
+  async function initTheme() {
+    let theme = localStorage.getItem(THEME_KEY);
+    if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    applyTheme(theme);
+  }
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+
+  // ---------- staff-gated view ----------
+  let ADMIN_PIN = "4671"; // overwritten at init from app_settings, this is just a pre-load fallback
+  const adminView = document.getElementById("adminView");
+  const shopDropoffView = document.getElementById("shopDropoffView");
+  const clientView = document.getElementById("clientView");
+  const staffModal = document.getElementById("staffModal");
+  const staffPinForm = document.getElementById("staffPinForm");
+  const staffPinInput = document.getElementById("staffPinInput");
+
+  function setView(role) {
+    currentRole = role;
+    const isAdmin = role === "admin";
+    const isShop = role === "shop";
+    const isStaff = isAdmin || isShop;
+
+    adminView.style.display = isAdmin ? "" : "none";
+    shopDropoffView.style.display = isShop ? "" : "none";
+    clientView.style.display = isStaff ? "none" : "";
+
+    document.getElementById("exportBtn").style.display = isAdmin ? "" : "none";
+    document.getElementById("exitStaffBtn").style.display = isStaff ? "" : "none";
+    document.querySelector(".staff-footer").style.display = isStaff ? "none" : "";
+
+    if (isAdmin) {
+      brandSub.textContent = "Job board & revenue tracker — all shops";
+    } else if (isShop) {
+      brandSub.textContent = `Drop-off desk — ${currentShop}`;
+      shopViewTitle.textContent = currentShop;
+    } else {
+      brandSub.textContent = "Repair status, made simple";
+      currentShop = null;
+    }
+    history.replaceState(null, "", isStaff ? "#staff" : " ");
+  }
+
+  function openStaffModal() {
+    staffModal.style.display = "flex";
+    staffPinInput.value = "";
+    setTimeout(() => staffPinInput.focus(), 50);
+  }
+  function closeStaffModal() { staffModal.style.display = "none"; }
+
+  document.getElementById("staffLoginLink").addEventListener("click", openStaffModal);
+  document.getElementById("staffModalCancel").addEventListener("click", closeStaffModal);
+  staffModal.addEventListener("click", (e) => { if (e.target === staffModal) closeStaffModal(); });
+
+  staffPinForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pin = staffPinInput.value;
+    const matchedShop = SHOPS.find(s => s.pin === pin);
+    if (pin === ADMIN_PIN) {
+      closeStaffModal();
+      setView("admin");
+      renderAppointments();
+      saveSession("admin", null);
+      startSessionWatcher();
+      showToast("Welcome back");
+    } else if (matchedShop) {
+      currentShop = matchedShop.name;
+      closeStaffModal();
+      setView("shop");
+      document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
+      renderShopDropoffs();
+      saveSession("shop", matchedShop.name);
+      startSessionWatcher();
+      showToast(`Signed in — ${matchedShop.name}`);
+    } else {
+      showToast("Incorrect PIN");
+      staffPinInput.value = "";
+      staffPinInput.focus();
+    }
+  });
+
+  document.getElementById("exitStaffBtn").addEventListener("click", () => {
+    clearSession();
+    stopSessionWatcher();
+    setView("client");
+    showToast("Signed out");
+  });
+
+  // ---------- admin PIN change ----------
+  const adminPinForm = document.getElementById("adminPinForm");
+  adminPinForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const currentInput = document.getElementById("currentAdminPin");
+    const newInput = document.getElementById("newAdminPin");
+    const confirmInput = document.getElementById("confirmAdminPin");
+    const current = currentInput.value.trim();
+    const next = newInput.value.trim();
+    const confirmVal = confirmInput.value.trim();
+
+    if (current !== ADMIN_PIN) { showToast("Current PIN is incorrect"); return; }
+    if (!next || next.length < 4) { showToast("New PIN should be at least 4 characters"); return; }
+    if (next !== confirmVal) { showToast("New PIN and confirmation don't match"); return; }
+    if (SHOPS.some(s => s.pin === next)) { showToast("That PIN is already used by a shop"); return; }
+
+    const updated = await updateAdminPinDB(next);
+    if (updated) {
+      ADMIN_PIN = next;
+      adminPinForm.reset();
+      showToast("Admin PIN updated");
+    } else {
+      showToast("Error updating PIN — check the app_settings table exists in Supabase");
+    }
+  });
+
+  // ---------- metrics ----------
+  function updateAllMetrics() {
+    const completed = appointments.filter(a => a.status === "Completed");
+    const pending = appointments.filter(a => a.status !== "Completed");
+    const totalCollected = completed.reduce((s, a) => s + parseFloat(a.amount || 0), 0);
+    const monthRevenue = completed.filter(a => isCurrentMonth(a.day)).reduce((s, a) => s + parseFloat(a.amount || 0), 0);
+    const todayCount = appointments.filter(a => isToday(a.day)).length;
+    const avgTicket = completed.length ? totalCollected / completed.length : 0;
+
+    document.getElementById("totalCollectedKpi").textContent = `ZMW ${totalCollected.toFixed(2)}`;
+    document.getElementById("activeAppointmentsKpi").textContent = pending.length;
+    document.getElementById("completedJobsKpi").textContent = completed.length;
+    document.getElementById("monthRevenueKpi").textContent = `ZMW ${monthRevenue.toFixed(2)}`;
+    document.getElementById("todayText").textContent = `${todayCount} due today`;
+    document.getElementById("avgTicketText").textContent = `avg ticket ZMW ${avgTicket.toFixed(2)}`;
+    document.getElementById("footerCollected").textContent = `ZMW ${totalCollected.toFixed(2)}`;
+    document.getElementById("avgTicketSpan").textContent = `Average ticket: ZMW ${avgTicket.toFixed(2)}`;
+    document.getElementById("totalCountText").textContent = `${appointments.length} job${appointments.length === 1 ? '' : 's'} on record`;
+  }
+
+  // ---------- render ----------
+  function statusBadgeClass(status) {
+    if (status === "Completed") return "background: var(--accent-soft); color: var(--accent);";
+    if (status === "Ready for Pickup") return "background: var(--blue-soft); color: var(--blue);";
+    return "background: var(--amber-soft); color: var(--amber);";
+  }
+
+  function renderAppointments() {
+    let filtered = [...appointments].sort((a, b) => (b.day || '').localeCompare(a.day || ''));
+    const term = searchInput.value.trim().toLowerCase();
+    if (term) {
+      filtered = filtered.filter(a =>
+        a.name.toLowerCase().includes(term) ||
+        a.phone.toLowerCase().includes(term) ||
+        a.repair.toLowerCase().includes(term) ||
+        (a.trackingId || '').toLowerCase().includes(term)
+      );
+    }
+    if (currentFilter === "pending") filtered = filtered.filter(a => a.status !== "Completed");
+    if (currentFilter === "completed") filtered = filtered.filter(a => a.status === "Completed");
+    if (shopFilterSelect.value !== "all") filtered = filtered.filter(a => a.shop === shopFilterSelect.value);
+
+    tbody.innerHTML = "";
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10">
+        <div class="empty-state"><div class="emoji">🔧</div><div>No jobs found. Add one above, or clear your filters.</div></div>
+      </td></tr>`;
+      updateAllMetrics();
+      return;
+    }
+
+    filtered.forEach(appt => {
+      const row = document.createElement("tr");
+      if (appt.status === "Completed") row.classList.add("completed-row");
+      const options = STAGES.map(s => `<option value="${s}" ${s === appt.status ? 'selected' : ''}>${s}</option>`).join("");
+      const isPaid = !!appt.paid;
+      const canConfirmPay = appt.status === "Completed" && !isPaid;
+      const paymentCell = isPaid
+        ? `<span class="paid-badge">Paid & closed</span>`
+        : (canConfirmPay
+            ? `<button class="action-btn btn-confirm-pay" data-id="${appt.id}" data-action="confirm-pay">Confirm payment</button>`
+            : `<span style="color: var(--muted); font-size: 0.78rem;">—</span>`);
+      row.innerHTML = `
+        <td class="name-cell" data-label="Client">${escapeHtml(appt.name)}</td>
+        <td data-label="Tracking ID"><span class="track-id mono${isPaid ? ' voided' : ''}" data-id="${appt.trackingId}" title="${isPaid ? 'Voided — payment already confirmed' : 'Click to copy'}">${appt.trackingId}</span></td>
+        <td data-label="Shop">${escapeHtml(appt.shop || '—')}</td>
+        <td data-label="Contact">${escapeHtml(appt.phone)}</td>
+        <td data-label="Repair">${escapeHtml(appt.repair)}</td>
+        <td data-label="Date">${formatDisplayDate(appt.day)}</td>
+        <td class="amount-cell" data-label="Amount">ZMW ${parseFloat(appt.amount).toFixed(2)}</td>
+        <td data-label="Status"><select class="status-select" data-id="${appt.id}" style="${statusBadgeClass(appt.status)}">${options}</select></td>
+        <td data-label="Payment">${paymentCell}</td>
+        <td data-label="Actions">
+          <div class="btn-icon-group">
+            <button class="action-btn btn-edit" data-id="${appt.id}" data-action="edit">Edit</button>
+            <button class="action-btn btn-delete" data-id="${appt.id}" data-action="delete">Delete</button>
+          </div>
+        </td>`;
+      tbody.appendChild(row);
+    });
+
+    updateAllMetrics();
+    attachTableEvents();
+  }
+
+  function attachTableEvents() {
+    tbody.querySelectorAll('[data-action="edit"]').forEach(b => b.addEventListener('click', handleEdit));
+    tbody.querySelectorAll('[data-action="delete"]').forEach(b => b.addEventListener('click', handleDelete));
+    tbody.querySelectorAll('[data-action="confirm-pay"]').forEach(b => b.addEventListener('click', handleConfirmPayment));
+    tbody.querySelectorAll('.status-select').forEach(s => s.addEventListener('change', handleStatusChange));
+    tbody.querySelectorAll('.track-id').forEach(el => el.addEventListener('click', handleCopyId));
+  }
+
+  // ---------- shop drop-off view (single shop, staff-facing) ----------
+  function renderShopDropoffs() {
+    if (!currentShop) return;
+    let shopJobs = appointments.filter(a => a.shop === currentShop)
+      .sort((a, b) => (b.day || '').localeCompare(a.day || ''));
+
+    const term = shopSearchBar.value.trim().toLowerCase();
+    if (term) {
+      shopJobs = shopJobs.filter(a =>
+        a.name.toLowerCase().includes(term) ||
+        a.phone.toLowerCase().includes(term) ||
+        a.repair.toLowerCase().includes(term) ||
+        (a.trackingId || '').toLowerCase().includes(term)
+      );
+    }
+
+    if (shopJobs.length === 0) {
+      shopDropoffList.innerHTML = `<div class="result-card">
+        <div class="empty-state"><div class="emoji">🔧</div><div>No drop-offs registered yet for ${escapeHtml(currentShop)}.</div></div>
+      </div>`;
+      return;
+    }
+
+    shopDropoffList.innerHTML = shopJobs.map(appt => `
+      <div class="result-card">
+        <div class="result-head">
+          <div>
+            <div class="result-repair">${escapeHtml(appt.name)}</div>
+            <div class="result-meta">${escapeHtml(appt.repair)} · Dropped off ${formatDisplayDate(appt.day)} · ${escapeHtml(appt.phone)}</div>
+          </div>
+          <span class="track-id mono${appt.paid ? ' voided' : ''}" data-id="${appt.trackingId}" title="${appt.paid ? 'Voided — payment already confirmed' : 'Click to copy'}">${appt.trackingId}</span>
+        </div>
+        <div class="result-details">
+          <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value" style="${statusBadgeClass(appt.status)}; display:inline-block; padding:3px 10px; border-radius:40px;">${appt.status}</div></div>
+          <div class="detail-item"><div class="detail-label">Amount</div><div class="detail-value">${appt.paid ? `<span class="paid-badge">Paid</span>` : `ZMW ${parseFloat(appt.amount).toFixed(2)}`}</div></div>
+        </div>
+      </div>`).join("");
+
+    shopDropoffList.querySelectorAll('.track-id').forEach(el => el.addEventListener('click', handleCopyId));
+  }
+
+  shopSearchBar.addEventListener("input", renderShopDropoffs);
+
+  shopDropoffForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentShop) return;
+    const name = document.getElementById("sd_name").value.trim();
+    const phone = document.getElementById("sd_phone").value.trim();
+    const repair = document.getElementById("sd_repair").value.trim();
+    const day = document.getElementById("sd_day").value;
+    const amount = parseFloat(document.getElementById("sd_amount").value);
+
+    if (!name || !phone || !repair || !day || isNaN(amount) || amount < 0) {
+      showToast("Please fill every field correctly");
+      return;
+    }
+
+    const trackingId = makeTrackingId();
+    const newRecord = { trackingId, name, phone, repair, day, amount, status: "Received", shop: currentShop };
+    const created = await addAppointment(newRecord);
+    if (created) {
+      appointments.unshift(created);
+      showToast(`Client registered — give them ID ${trackingId}`);
+      shopDropoffForm.reset();
+      document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
+      renderShopDropoffs();
+    } else {
+      showToast("Error registering client");
+    }
+  });
+
+  function findById(id) { return appointments.find(a => a.id === id); }
+
+  function handleCopyId(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    if (navigator.clipboard) navigator.clipboard.writeText(id).then(() => showToast(`Copied ${id}`));
+  }
+
+  function handleEdit(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    const appt = findById(id);
+    if (!appt) return;
+    document.getElementById("name").value = appt.name;
+    document.getElementById("phone").value = appt.phone;
+    document.getElementById("repair").value = appt.repair;
+    document.getElementById("day").value = appt.day;
+    document.getElementById("amount").value = appt.amount;
+    document.getElementById("status").value = appt.status;
+    jobShopSelect.value = appt.shop || (SHOPS[0] ? SHOPS[0].name : "");
+    editId = id;
+    formModeText.textContent = "Edit job";
+    editModeChip.style.display = "inline-block";
+    submitBtn.textContent = "Save changes";
+    cancelEditBtn.style.display = "inline-flex";
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleDelete(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    if (!confirm("Delete this job? This can't be undone.")) return;
+    const ok = await deleteAppointment(id);
+    if (ok) {
+      appointments = appointments.filter(a => a.id !== id);
+      if (editId === id) resetFormMode();
+      renderAppointments();
+      showToast("Job deleted");
+    } else {
+      showToast("Error deleting job");
+    }
+  }
+
+  async function handleStatusChange(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    const newStatus = e.target.value;
+    const updated = await updateAppointment(id, { status: newStatus });
+    if (updated) {
+      const appt = findById(id);
+      if (appt) appt.status = newStatus;
+      renderAppointments();
+      showToast(`Status updated to "${newStatus}"`);
+    } else {
+      showToast("Error updating status");
+    }
+  }
+
+  async function handleConfirmPayment(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    const appt = findById(id);
+    if (!appt) return;
+    if (!confirm(`Confirm ZMW ${parseFloat(appt.amount).toFixed(2)} was paid by ${appt.name}?\n\nThis will close out and void tracking ID ${appt.trackingId} — the client won't be able to use it to look up or pay for this repair again.`)) return;
+
+    const updated = await updateAppointment(id, { paid: true, paid_at: new Date().toISOString() });
+    if (updated) {
+      const idx = appointments.findIndex(a => a.id === id);
+      if (idx > -1) appointments[idx] = updated;
+      renderAppointments();
+      showToast(`Payment confirmed — ${appt.trackingId} is now closed`);
+    } else {
+      showToast("Error confirming payment");
+    }
+  }
+
+  function resetFormMode() {
+    editId = null;
+    formModeText.textContent = "New job";
+    editModeChip.style.display = "none";
+    submitBtn.textContent = "Save job";
+    cancelEditBtn.style.display = "none";
+    form.reset();
+    document.getElementById("status").value = "Received";
+  }
+  cancelEditBtn.addEventListener("click", resetFormMode);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const repair = document.getElementById("repair").value.trim();
+    const day = document.getElementById("day").value;
+    const amount = parseFloat(document.getElementById("amount").value);
+    const status = document.getElementById("status").value;
+    const shop = jobShopSelect.value;
+
+    if (!name || !phone || !repair || !day || isNaN(amount) || amount < 0 || !shop) {
+      showToast("Please fill every field correctly");
+      return;
+    }
+
+    if (editId) {
+      const updates = { name, phone, repair, day, amount, status, shop };
+      const updated = await updateAppointment(editId, updates);
+      if (updated) {
+        const idx = appointments.findIndex(a => a.id === editId);
+        if (idx > -1) appointments[idx] = updated;
+        showToast("Job updated");
+        resetFormMode();
+        renderAppointments();
+      } else {
+        showToast("Error updating job");
+      }
+    } else {
+      const trackingId = makeTrackingId();
+      const newRecord = { trackingId, name, phone, repair, day, amount, status, shop };
+      const created = await addAppointment(newRecord);
+      if (created) {
+        appointments.unshift(created);
+        showToast(`Job saved — give the client ID ${trackingId}`);
+        resetFormMode();
+        renderAppointments();
+      } else {
+        showToast("Error saving job");
+      }
+    }
+  });
+
+  document.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      currentFilter = chip.getAttribute("data-filter");
+      renderAppointments();
+    });
+  });
+  searchInput.addEventListener("input", renderAppointments);
+  shopFilterSelect.addEventListener("change", renderAppointments);
+
+  // ---------- CSV export ----------
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    if (appointments.length === 0) { showToast("No jobs to export yet"); return; }
+    const rows = [["Tracking ID", "Client", "Shop", "Phone", "Repair", "Date", "Amount (ZMW)", "Status", "Paid"]];
+    appointments.forEach(a => rows.push([a.trackingId, a.name, a.shop || '', a.phone, a.repair, a.day, a.amount, a.status, a.paid ? "Yes" : "No"]));
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cmk-repairs-${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported CSV");
+  });
+
+  // ---------- client tracking ----------
+  const trackForm = document.getElementById("trackForm");
+  const trackResults = document.getElementById("trackResults");
+
+  function normalizeDigits(s) { return (s || '').replace(/\D/g, ''); }
+
+  function searchAppointments(query) {
+    const q = query.trim();
+    if (!q) return [];
+    const qUpper = q.toUpperCase();
+    const qDigits = normalizeDigits(q);
+    return appointments.filter(a => {
+      if (a.trackingId && a.trackingId.toUpperCase() === qUpper) return true;
+      if (qDigits.length >= 6) {
+        const aDigits = normalizeDigits(a.phone);
+        if (aDigits && (aDigits.endsWith(qDigits) || qDigits.endsWith(aDigits))) return true;
+      }
+      return false;
+    });
+  }
+
+  function renderStepper(status) {
+    const idx = STAGES.indexOf(status);
+    return `<div class="tracker-steps">${STAGES.map((s, i) => {
+      let cls = "";
+      if (i < idx) cls = "done";
+      else if (i === idx) cls = "current";
+      const mark = i < idx ? "✓" : (i + 1);
+      return `<div class="tracker-step ${cls}">
+        <div class="step-dot">${mark}</div>
+        <div class="step-label">${s}</div>
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderTrackResults(results, queried) {
+    if (results.length === 0) {
+      trackResults.innerHTML = `<div class="result-card">
+        <div class="empty-state">
+          <div class="emoji">🔍</div>
+          <div>We couldn't find a repair matching "${escapeHtml(queried)}". Double-check your tracking ID or phone number.</div>
+        </div>
+      </div>`;
+      return;
+    }
+    trackResults.innerHTML = results.map(appt => {
+      if (appt.paid) {
+        return `<div class="result-card">
+          <div class="result-head">
+            <div>
+              <div class="result-repair">${escapeHtml(appt.repair)}</div>
+              <div class="result-meta">${escapeHtml(appt.name)} · Booked ${formatDisplayDate(appt.day)}</div>
+            </div>
+          </div>
+          <div class="empty-state" style="padding: 24px 10px;">
+            <div class="emoji">✅</div>
+            <div>This repair is complete and has already been paid for. This receipt is now closed — thanks for choosing CMK Repairs!</div>
+          </div>
+        </div>`;
+      }
+      const isDone = appt.status === "Completed";
+      const paymentSection = isDone ? `
+        <div class="payment-box">
+          <div class="payment-title">Your repair is complete 🎉</div>
+          <div class="payment-sub">Balance due: ZMW ${parseFloat(appt.amount).toFixed(2)}</div>
+          <a class="btn-pay" href="${PAY_URL}" target="_blank" rel="noopener">Make payment</a>
+        </div>` : `
+        <div class="waiting-note">We'll unlock payment here once your repair is marked complete.</div>`;
+      return `<div class="result-card">
+        <div class="result-head">
+          <div>
+            <div class="result-repair">${escapeHtml(appt.repair)}</div>
+            <div class="result-meta">${escapeHtml(appt.name)} · Booked ${formatDisplayDate(appt.day)}</div>
+          </div>
+          <span class="track-id mono">${appt.trackingId}</span>
+        </div>
+        ${renderStepper(appt.status)}
+        <div class="result-details">
+          <div class="detail-item"><div class="detail-label">Current status</div><div class="detail-value">${appt.status}</div></div>
+          <div class="detail-item"><div class="detail-label">Estimated cost</div><div class="detail-value">ZMW ${parseFloat(appt.amount).toFixed(2)}</div></div>
+        </div>
+        ${paymentSection}
+      </div>`;
+    }).join("");
+  }
+
+  trackForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = document.getElementById("trackQuery").value;
+    const results = searchAppointments(q);
+    renderTrackResults(results, q);
+  });
+
+  // ---------- init ----------
+  (async function init() {
+    await initTheme();
+    // load admin PIN and shops first so PIN checks and dropdowns are ready
+    const dbAdminPin = await fetchAdminPin();
+    if (dbAdminPin) ADMIN_PIN = dbAdminPin;
+    SHOPS = await fetchShops();
+    populateShopSelects();
+    renderShopManageList();
+    // load appointments from Supabase
+    const data = await fetchAppointments();
+    if (data.length) {
+      appointments = data;
+    } else {
+      // fallback to localStorage if Supabase empty (or first run)
+      const local = localStorage.getItem(STORAGE_KEY);
+      if (local) {
+        try {
+          appointments = JSON.parse(local);
+        } catch (_) { appointments = []; }
+      }
+    }
+    renderAppointments();
+    renderShopManageList();
+
+    // restore a still-valid staff session (survives refresh, expires after 5 min idle)
+    const session = getSession();
+    let restored = false;
+    if (session && (Date.now() - session.lastActivity) <= INACTIVITY_MS) {
+      if (session.role === "admin") {
+        setView("admin");
+        renderAppointments();
+        startSessionWatcher();
+        restored = true;
+      } else if (session.role === "shop") {
+        const matchedShop = SHOPS.find(s => s.name === session.shopName);
+        if (matchedShop) {
+          currentShop = matchedShop.name;
+          setView("shop");
+          document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
+          renderShopDropoffs();
+          startSessionWatcher();
+          restored = true;
+        }
+      }
+    }
+    if (!restored) {
+      clearSession();
+      setView("client");
+      if (location.hash === "#staff") openStaffModal();
+    }
+  })();
+
+  // ---------- PWA: service worker ----------
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((err) => {
+        console.error("Service worker registration failed:", err);
+      });
+    });
+  }
+</script>
+</body>
+</html>

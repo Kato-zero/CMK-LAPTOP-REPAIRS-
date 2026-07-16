@@ -161,6 +161,18 @@
     .shop-row-name { font-weight: 600; font-size: 0.9rem; }
     .shop-row-pin { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
 
+    .paid-badge { background: var(--accent-soft); color: var(--accent); font-size: 0.7rem; font-weight: 700; padding: 5px 12px; border-radius: 40px; white-space: nowrap; display: inline-block; }
+    .track-id.voided { text-decoration: line-through; opacity: 0.55; cursor: default; }
+    .btn-confirm-pay { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+
+    .shop-pin-input {
+      padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;
+      width: 110px;
+    }
+    .shop-pin-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .btn-save-pin { background: var(--accent); color: #fff; }
+
     .exit-staff-btn {
       background: var(--surface); border: 1px solid var(--border); color: var(--muted);
       font-size: 0.78rem; font-weight: 600; padding: 10px 16px; border-radius: 40px;
@@ -342,6 +354,20 @@
 
     <div class="form-card">
       <div class="form-title">
+        <span>Admin security</span>
+      </div>
+      <form id="adminPinForm" class="appointment-form">
+        <div class="input-group"><label>Current PIN</label><input type="password" inputmode="numeric" id="currentAdminPin" placeholder="Current PIN" required></div>
+        <div class="input-group"><label>New PIN</label><input type="password" inputmode="numeric" id="newAdminPin" placeholder="New PIN" required></div>
+        <div class="input-group"><label>Confirm new PIN</label><input type="password" inputmode="numeric" id="confirmAdminPin" placeholder="Confirm new PIN" required></div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="updateAdminPinBtn">Update PIN</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="form-card">
+      <div class="form-title">
         <span id="formModeText">New job</span>
         <span id="editModeChip" class="edit-mode-badge" style="display:none;">Editing</span>
       </div>
@@ -390,10 +416,10 @@
     <div class="table-container">
       <table class="appointments-table" id="appointmentsTable">
         <thead>
-          <tr><th>Client</th><th>Tracking ID</th><th>Shop</th><th>Contact</th><th>Repair</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
+          <tr><th>Client</th><th>Tracking ID</th><th>Shop</th><th>Contact</th><th>Repair</th><th>Date</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="9"><div class="loading-state">Loading jobs…</div></td></tr>
+          <tr><td colspan="10"><div class="loading-state">Loading jobs…</div></td></tr>
         </tbody>
       </table>
     </div>
@@ -586,6 +612,7 @@
 
   const shopManageForm = document.getElementById("shopManageForm");
   const shopManageList = document.getElementById("shopManageList");
+  let editingShopId = null;
 
   function renderShopManageList() {
     if (SHOPS.length === 0) {
@@ -594,15 +621,67 @@
     }
     shopManageList.innerHTML = SHOPS.map(s => {
       const jobCount = appointments.filter(a => a.shop === s.name).length;
+      if (s.id === editingShopId) {
+        return `<div class="shop-row">
+          <div>
+            <div class="shop-row-name">${escapeHtml(s.name)}</div>
+            <div class="shop-row-pin" style="margin-top:6px;">
+              <input type="text" class="shop-pin-input" id="editPinInput_${s.id}" inputmode="numeric" placeholder="New PIN" value="${escapeHtml(s.pin)}">
+            </div>
+          </div>
+          <div class="btn-icon-group">
+            <button type="button" class="action-btn btn-save-pin" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Save</button>
+            <button type="button" class="action-btn btn-edit" data-cancel-edit-pin="1">Cancel</button>
+          </div>
+        </div>`;
+      }
       return `<div class="shop-row">
         <div>
           <div class="shop-row-name">${escapeHtml(s.name)}</div>
           <div class="shop-row-pin">PIN ${escapeHtml(s.pin)} · ${jobCount} job${jobCount === 1 ? '' : 's'}</div>
         </div>
-        <button type="button" class="action-btn btn-delete" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Delete</button>
+        <div class="btn-icon-group">
+          <button type="button" class="action-btn btn-edit" data-edit-pin-id="${s.id}">Change PIN</button>
+          <button type="button" class="action-btn btn-delete" data-shop-id="${s.id}" data-shop-name="${escapeHtml(s.name)}">Delete</button>
+        </div>
       </div>`;
     }).join("");
-    shopManageList.querySelectorAll('[data-shop-id]').forEach(btn => btn.addEventListener('click', handleDeleteShop));
+    shopManageList.querySelectorAll('[data-shop-id]').forEach(btn => btn.addEventListener('click', e => {
+      if (e.currentTarget.classList.contains('btn-save-pin')) handleSaveShopPin(e);
+      else handleDeleteShop(e);
+    }));
+    shopManageList.querySelectorAll('[data-edit-pin-id]').forEach(btn => btn.addEventListener('click', e => {
+      editingShopId = e.currentTarget.getAttribute('data-edit-pin-id');
+      renderShopManageList();
+    }));
+    shopManageList.querySelectorAll('[data-cancel-edit-pin]').forEach(btn => btn.addEventListener('click', () => {
+      editingShopId = null;
+      renderShopManageList();
+    }));
+  }
+
+  async function handleSaveShopPin(e) {
+    const id = e.currentTarget.getAttribute('data-shop-id');
+    const name = e.currentTarget.getAttribute('data-shop-name');
+    const input = document.getElementById(`editPinInput_${id}`);
+    const newPin = input.value.trim();
+
+    if (!newPin) { showToast("Enter a PIN"); return; }
+    if (newPin === ADMIN_PIN || SHOPS.some(s => s.pin === newPin && s.id !== id)) {
+      showToast("That PIN is already in use");
+      return;
+    }
+
+    const updated = await updateShopDB(id, { pin: newPin });
+    if (updated) {
+      const idx = SHOPS.findIndex(s => s.id === id);
+      if (idx > -1) SHOPS[idx] = updated;
+      editingShopId = null;
+      renderShopManageList();
+      showToast(`PIN updated for "${name}"`);
+    } else {
+      showToast("Error updating PIN");
+    }
   }
 
   shopManageForm.addEventListener("submit", async (e) => {
@@ -706,10 +785,29 @@
     return data ? data[0] : null;
   }
 
+  async function updateShopDB(id, updates) {
+    const { data, error } = await supabase.from('shops').update(updates).eq('id', id).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
   async function deleteShopDB(id) {
     const { error } = await supabase.from('shops').delete().eq('id', id);
     if (error) { console.error(error); return false; }
     return true;
+  }
+
+  // ---------- Supabase CRUD: app settings (admin PIN) ----------
+  async function fetchAdminPin() {
+    const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').maybeSingle();
+    if (error) { console.error(error); return null; }
+    return data ? data.value : null;
+  }
+
+  async function updateAdminPinDB(newPin) {
+    const { data, error } = await supabase.from('app_settings').update({ value: newPin }).eq('key', 'admin_pin').select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
   }
 
   // ---------- theme ----------
@@ -729,7 +827,7 @@
   });
 
   // ---------- staff-gated view ----------
-  const ADMIN_PIN = "4671";
+  let ADMIN_PIN = "4671"; // overwritten at init from app_settings, this is just a pre-load fallback
   const adminView = document.getElementById("adminView");
   const shopDropoffView = document.getElementById("shopDropoffView");
   const clientView = document.getElementById("clientView");
@@ -808,6 +906,32 @@
     showToast("Signed out");
   });
 
+  // ---------- admin PIN change ----------
+  const adminPinForm = document.getElementById("adminPinForm");
+  adminPinForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const currentInput = document.getElementById("currentAdminPin");
+    const newInput = document.getElementById("newAdminPin");
+    const confirmInput = document.getElementById("confirmAdminPin");
+    const current = currentInput.value.trim();
+    const next = newInput.value.trim();
+    const confirmVal = confirmInput.value.trim();
+
+    if (current !== ADMIN_PIN) { showToast("Current PIN is incorrect"); return; }
+    if (!next || next.length < 4) { showToast("New PIN should be at least 4 characters"); return; }
+    if (next !== confirmVal) { showToast("New PIN and confirmation don't match"); return; }
+    if (SHOPS.some(s => s.pin === next)) { showToast("That PIN is already used by a shop"); return; }
+
+    const updated = await updateAdminPinDB(next);
+    if (updated) {
+      ADMIN_PIN = next;
+      adminPinForm.reset();
+      showToast("Admin PIN updated");
+    } else {
+      showToast("Error updating PIN — check the app_settings table exists in Supabase");
+    }
+  });
+
   // ---------- metrics ----------
   function updateAllMetrics() {
     const completed = appointments.filter(a => a.status === "Completed");
@@ -852,7 +976,7 @@
 
     tbody.innerHTML = "";
     if (filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9">
+      tbody.innerHTML = `<tr><td colspan="10">
         <div class="empty-state"><div class="emoji">🔧</div><div>No jobs found. Add one above, or clear your filters.</div></div>
       </td></tr>`;
       updateAllMetrics();
@@ -863,15 +987,23 @@
       const row = document.createElement("tr");
       if (appt.status === "Completed") row.classList.add("completed-row");
       const options = STAGES.map(s => `<option value="${s}" ${s === appt.status ? 'selected' : ''}>${s}</option>`).join("");
+      const isPaid = !!appt.paid;
+      const canConfirmPay = appt.status === "Completed" && !isPaid;
+      const paymentCell = isPaid
+        ? `<span class="paid-badge">Paid & closed</span>`
+        : (canConfirmPay
+            ? `<button class="action-btn btn-confirm-pay" data-id="${appt.id}" data-action="confirm-pay">Confirm payment</button>`
+            : `<span style="color: var(--muted); font-size: 0.78rem;">—</span>`);
       row.innerHTML = `
         <td class="name-cell" data-label="Client">${escapeHtml(appt.name)}</td>
-        <td data-label="Tracking ID"><span class="track-id mono" data-id="${appt.trackingId}" title="Click to copy">${appt.trackingId}</span></td>
+        <td data-label="Tracking ID"><span class="track-id mono${isPaid ? ' voided' : ''}" data-id="${appt.trackingId}" title="${isPaid ? 'Voided — payment already confirmed' : 'Click to copy'}">${appt.trackingId}</span></td>
         <td data-label="Shop">${escapeHtml(appt.shop || '—')}</td>
         <td data-label="Contact">${escapeHtml(appt.phone)}</td>
         <td data-label="Repair">${escapeHtml(appt.repair)}</td>
         <td data-label="Date">${formatDisplayDate(appt.day)}</td>
         <td class="amount-cell" data-label="Amount">ZMW ${parseFloat(appt.amount).toFixed(2)}</td>
         <td data-label="Status"><select class="status-select" data-id="${appt.id}" style="${statusBadgeClass(appt.status)}">${options}</select></td>
+        <td data-label="Payment">${paymentCell}</td>
         <td data-label="Actions">
           <div class="btn-icon-group">
             <button class="action-btn btn-edit" data-id="${appt.id}" data-action="edit">Edit</button>
@@ -888,6 +1020,7 @@
   function attachTableEvents() {
     tbody.querySelectorAll('[data-action="edit"]').forEach(b => b.addEventListener('click', handleEdit));
     tbody.querySelectorAll('[data-action="delete"]').forEach(b => b.addEventListener('click', handleDelete));
+    tbody.querySelectorAll('[data-action="confirm-pay"]').forEach(b => b.addEventListener('click', handleConfirmPayment));
     tbody.querySelectorAll('.status-select').forEach(s => s.addEventListener('change', handleStatusChange));
     tbody.querySelectorAll('.track-id').forEach(el => el.addEventListener('click', handleCopyId));
   }
@@ -922,11 +1055,11 @@
             <div class="result-repair">${escapeHtml(appt.name)}</div>
             <div class="result-meta">${escapeHtml(appt.repair)} · Dropped off ${formatDisplayDate(appt.day)} · ${escapeHtml(appt.phone)}</div>
           </div>
-          <span class="track-id mono" data-id="${appt.trackingId}" title="Click to copy">${appt.trackingId}</span>
+          <span class="track-id mono${appt.paid ? ' voided' : ''}" data-id="${appt.trackingId}" title="${appt.paid ? 'Voided — payment already confirmed' : 'Click to copy'}">${appt.trackingId}</span>
         </div>
         <div class="result-details">
           <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value" style="${statusBadgeClass(appt.status)}; display:inline-block; padding:3px 10px; border-radius:40px;">${appt.status}</div></div>
-          <div class="detail-item"><div class="detail-label">Amount</div><div class="detail-value">ZMW ${parseFloat(appt.amount).toFixed(2)}</div></div>
+          <div class="detail-item"><div class="detail-label">Amount</div><div class="detail-value">${appt.paid ? `<span class="paid-badge">Paid</span>` : `ZMW ${parseFloat(appt.amount).toFixed(2)}`}</div></div>
         </div>
       </div>`).join("");
 
@@ -1017,6 +1150,23 @@
     }
   }
 
+  async function handleConfirmPayment(e) {
+    const id = e.currentTarget.getAttribute('data-id');
+    const appt = findById(id);
+    if (!appt) return;
+    if (!confirm(`Confirm ZMW ${parseFloat(appt.amount).toFixed(2)} was paid by ${appt.name}?\n\nThis will close out and void tracking ID ${appt.trackingId} — the client won't be able to use it to look up or pay for this repair again.`)) return;
+
+    const updated = await updateAppointment(id, { paid: true, paid_at: new Date().toISOString() });
+    if (updated) {
+      const idx = appointments.findIndex(a => a.id === id);
+      if (idx > -1) appointments[idx] = updated;
+      renderAppointments();
+      showToast(`Payment confirmed — ${appt.trackingId} is now closed`);
+    } else {
+      showToast("Error confirming payment");
+    }
+  }
+
   function resetFormMode() {
     editId = null;
     formModeText.textContent = "New job";
@@ -1084,8 +1234,8 @@
   // ---------- CSV export ----------
   document.getElementById("exportBtn").addEventListener("click", () => {
     if (appointments.length === 0) { showToast("No jobs to export yet"); return; }
-    const rows = [["Tracking ID", "Client", "Shop", "Phone", "Repair", "Date", "Amount (ZMW)", "Status"]];
-    appointments.forEach(a => rows.push([a.trackingId, a.name, a.shop || '', a.phone, a.repair, a.day, a.amount, a.status]));
+    const rows = [["Tracking ID", "Client", "Shop", "Phone", "Repair", "Date", "Amount (ZMW)", "Status", "Paid"]];
+    appointments.forEach(a => rows.push([a.trackingId, a.name, a.shop || '', a.phone, a.repair, a.day, a.amount, a.status, a.paid ? "Yes" : "No"]));
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -1143,6 +1293,20 @@
       return;
     }
     trackResults.innerHTML = results.map(appt => {
+      if (appt.paid) {
+        return `<div class="result-card">
+          <div class="result-head">
+            <div>
+              <div class="result-repair">${escapeHtml(appt.repair)}</div>
+              <div class="result-meta">${escapeHtml(appt.name)} · Booked ${formatDisplayDate(appt.day)}</div>
+            </div>
+          </div>
+          <div class="empty-state" style="padding: 24px 10px;">
+            <div class="emoji">✅</div>
+            <div>This repair is complete and has already been paid for. This receipt is now closed — thanks for choosing CMK Repairs!</div>
+          </div>
+        </div>`;
+      }
       const isDone = appt.status === "Completed";
       const paymentSection = isDone ? `
         <div class="payment-box">
@@ -1179,7 +1343,9 @@
   // ---------- init ----------
   (async function init() {
     await initTheme();
-    // load shops first so PIN checks and dropdowns are ready
+    // load admin PIN and shops first so PIN checks and dropdowns are ready
+    const dbAdminPin = await fetchAdminPin();
+    if (dbAdminPin) ADMIN_PIN = dbAdminPin;
     SHOPS = await fetchShops();
     populateShopSelects();
     renderShopManageList();

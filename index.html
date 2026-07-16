@@ -483,6 +483,8 @@
   // ---------- constants ----------
   const STORAGE_KEY = "cmk_appointments";      // fallback / local cache
   const THEME_KEY = "cmk_theme";
+  const SESSION_KEY = "cmk_session";           // persisted staff login
+  const INACTIVITY_MS = 5 * 60 * 1000;         // auto sign-out after 5 min idle
   const PAY_URL = "https://dashboard.lipila.io/pay/?id=C417B31870164B2";
   const STAGES = ["Received", "Diagnosing", "Repairing", "Ready for Pickup", "Completed"];
 
@@ -522,6 +524,60 @@
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
   }
+
+  // ---------- session persistence (stay signed in until logout or 5 min idle) ----------
+  function saveSession(role, shopName) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ role, shopName: shopName || null, lastActivity: Date.now() }));
+  }
+  function getSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+  }
+  function touchSession() {
+    const session = getSession();
+    if (!session) return;
+    session.lastActivity = Date.now();
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+  function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+  }
+
+  let sessionWatcherId = null;
+  function startSessionWatcher() {
+    stopSessionWatcher();
+    sessionWatcherId = setInterval(() => {
+      const session = getSession();
+      if (!session || Date.now() - session.lastActivity > INACTIVITY_MS) {
+        handleAutoLogout();
+      }
+    }, 15000);
+  }
+  function stopSessionWatcher() {
+    if (sessionWatcherId) clearInterval(sessionWatcherId);
+    sessionWatcherId = null;
+  }
+  function handleAutoLogout() {
+    clearSession();
+    stopSessionWatcher();
+    setView("client");
+    showToast("Signed out after 5 minutes of inactivity");
+  }
+
+  // Any real user interaction resets the idle clock, throttled to avoid excess writes.
+  let lastActivityWrite = 0;
+  function markActivity() {
+    if (currentRole !== "admin" && currentRole !== "shop") return;
+    const now = Date.now();
+    if (now - lastActivityWrite < 5000) return;
+    lastActivityWrite = now;
+    touchSession();
+  }
+  ["mousemove", "mousedown", "keydown", "touchstart", "scroll"].forEach(evt =>
+    document.addEventListener(evt, markActivity, { passive: true })
+  );
 
   function populateShopSelects() {
     jobShopSelect.innerHTML = SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
@@ -726,6 +782,8 @@
       closeStaffModal();
       setView("admin");
       renderAppointments();
+      saveSession("admin", null);
+      startSessionWatcher();
       showToast("Welcome back");
     } else if (matchedShop) {
       currentShop = matchedShop.name;
@@ -733,6 +791,8 @@
       setView("shop");
       document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
       renderShopDropoffs();
+      saveSession("shop", matchedShop.name);
+      startSessionWatcher();
       showToast(`Signed in — ${matchedShop.name}`);
     } else {
       showToast("Incorrect PIN");
@@ -741,7 +801,12 @@
     }
   });
 
-  document.getElementById("exitStaffBtn").addEventListener("click", () => setView("client"));
+  document.getElementById("exitStaffBtn").addEventListener("click", () => {
+    clearSession();
+    stopSessionWatcher();
+    setView("client");
+    showToast("Signed out");
+  });
 
   // ---------- metrics ----------
   function updateAllMetrics() {
@@ -1133,8 +1198,33 @@
     }
     renderAppointments();
     renderShopManageList();
-    setView("client");
-    if (location.hash === "#staff") openStaffModal();
+
+    // restore a still-valid staff session (survives refresh, expires after 5 min idle)
+    const session = getSession();
+    let restored = false;
+    if (session && (Date.now() - session.lastActivity) <= INACTIVITY_MS) {
+      if (session.role === "admin") {
+        setView("admin");
+        renderAppointments();
+        startSessionWatcher();
+        restored = true;
+      } else if (session.role === "shop") {
+        const matchedShop = SHOPS.find(s => s.name === session.shopName);
+        if (matchedShop) {
+          currentShop = matchedShop.name;
+          setView("shop");
+          document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
+          renderShopDropoffs();
+          startSessionWatcher();
+          restored = true;
+        }
+      }
+    }
+    if (!restored) {
+      clearSession();
+      setView("client");
+      if (location.hash === "#staff") openStaffModal();
+    }
   })();
 </script>
 </body>

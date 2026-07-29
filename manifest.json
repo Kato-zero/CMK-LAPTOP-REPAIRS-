@@ -1,11 +1,12 @@
 {
-  "name": "CMK Repairs Job Board",
+  "name": "CMK Repairs",
   "short_name": "CMK Repairs",
-  "start_url": "index.html",
-  "scope": "./",
+  "description": "Job board and repair tracker for CMK Repairs",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f2f4f7",
   "theme_color": "#0d7d72",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",

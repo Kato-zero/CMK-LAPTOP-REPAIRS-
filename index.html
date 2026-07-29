@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CMK Repairs · Job Board &amp; Repair Tracker</title>
+  <title>CMK Repairs · Job Board and Repair Tracker</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -18,7 +18,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <style>
-    /* ----- same look & feel, only updated for Supabase sync ----- */
     :root {
       --bg: #f2f4f7;
       --surface: #ffffff;
@@ -96,6 +95,31 @@
       cursor: pointer; box-shadow: var(--shadow); white-space: nowrap;
     }
     .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .notify-btn {
+      display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.78rem; font-weight: 600; padding: 10px 16px; border-radius: 40px;
+      cursor: pointer; box-shadow: var(--shadow); white-space: nowrap;
+      position: relative;
+    }
+    .notify-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .notify-btn.subscribed { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .notify-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 700;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      display: none;
+    }
+    .notify-badge.show { display: flex; }
 
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
     .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); }
@@ -122,6 +146,7 @@
       justify-content: center; gap: 8px; white-space: nowrap; flex: 1;
     }
     .btn-primary:hover { background: var(--accent-strong); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 12px 16px; border-radius: 40px; font-weight: 600; font-size: 0.84rem; cursor: pointer; }
 
     .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 16px; gap: 10px; }
@@ -155,6 +180,17 @@
     .empty-state { text-align: center; padding: 56px 20px; color: var(--muted); }
     .empty-state .emoji { font-size: 2rem; margin-bottom: 10px; }
     .loading-state { text-align: center; padding: 56px 20px; color: var(--muted); font-size: 0.85rem; }
+    .loading-state .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .insights-footer { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--surface); border-radius: var(--radius-md); padding: 14px 22px; border: 1px solid var(--border); }
     .revenue-summary { font-size: 0.84rem; color: var(--muted); }
@@ -264,6 +300,23 @@
     }
     .btn-pay:hover { background: var(--accent-strong); }
     .waiting-note { text-align: center; font-size: 0.8rem; color: var(--muted); padding-top: 4px; }
+    .notify-row { text-align: center; margin-top: 14px; }
+    .notify-me-btn {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      font-size: 0.78rem; font-weight: 600; padding: 9px 18px; border-radius: 40px; cursor: pointer; font-family: inherit;
+    }
+    .notify-me-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .notify-me-btn.subscribed { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); cursor: default; }
+
+    .commission-card {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #fff;
+      border-radius: var(--radius-lg); padding: 20px 22px; margin-bottom: 22px; box-shadow: var(--shadow);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;
+    }
+    .commission-card .commission-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; margin-bottom: 6px; }
+    .commission-card .commission-value { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; }
+    .commission-card .commission-sub { font-size: 0.72rem; opacity: 0.85; margin-top: 4px; }
+    .commission-split { display: flex; gap: 26px; flex-wrap: wrap; }
 
     #toast {
       position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -272,6 +325,36 @@
       transition: all 0.25s ease; z-index: 50; white-space: nowrap;
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Notification history dropdown */
+    .notif-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      width: 340px;
+      max-height: 380px;
+      overflow-y: auto;
+      display: none;
+      z-index: 50;
+    }
+    .notif-dropdown.show { display: block; }
+    .notif-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--surface-2); }
+    .notif-item .notif-title { font-weight: 600; font-size: 0.85rem; }
+    .notif-item .notif-body { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .notif-item .notif-time { font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+    .notif-item.unread { background: var(--accent-soft); }
+    .notif-empty { padding: 24px; text-align: center; color: var(--muted); }
 
     @media (max-width: 720px) {
       body { padding: 14px 10px 56px; }
@@ -294,6 +377,7 @@
       .track-form { flex-wrap: wrap; }
       .track-form input { flex-basis: 100%; }
       .track-form button { flex: 1; }
+      .notif-dropdown { width: 100%; right: auto; left: 0; }
     }
     @media (max-width: 420px) { .appointment-form { grid-template-columns: 1fr; } }
   </style>
@@ -312,6 +396,10 @@
       </div>
     </div>
     <div class="header-right">
+      <button class="notify-btn" id="adminNotifyBtn" title="Get notified of new drop-offs" style="display:none;">
+        🔔 Notifications
+        <span class="notify-badge" id="notifBadge">0</span>
+      </button>
       <button class="export-btn" id="exportBtn" title="Export as CSV" style="display:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export
@@ -429,7 +517,7 @@
           <tr><th>Client</th><th>Tracking ID</th><th>Shop</th><th>Contact</th><th>Repair</th><th>Date</th><th>Amount</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="10"><div class="loading-state">Loading jobs…</div></td></tr>
+          <tr><td colspan="10"><div class="loading-state"><div class="spinner"></div><div>Loading jobs…</div></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -446,6 +534,23 @@
     <div class="client-hero">
       <h2 id="shopViewTitle">Shop</h2>
       <p>Register a client dropping off their laptop at this shop.</p>
+    </div>
+
+    <div class="commission-card">
+      <div>
+        <div class="commission-label">Your commission (20%) · paid &amp; completed jobs</div>
+        <div class="commission-split">
+          <div>
+            <div class="commission-value" id="shopCommissionMonth">ZMW 0.00</div>
+            <div class="commission-sub">This month</div>
+          </div>
+          <div>
+            <div class="commission-value" id="shopCommissionTotal">ZMW 0.00</div>
+            <div class="commission-sub" id="shopCommissionJobs">0 paid jobs</div>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="notify-btn" id="shopNotifyBtn" style="background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.4); color:#fff;">🔔 Enable alerts</button>
     </div>
 
     <div class="form-card">
@@ -517,22 +622,25 @@
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ---------- constants ----------
-  const STORAGE_KEY = "cmk_appointments";      // fallback / local cache
+  const STORAGE_KEY = "cmk_appointments";
   const THEME_KEY = "cmk_theme";
-  const SESSION_KEY = "cmk_session";           // persisted staff login
-  const INACTIVITY_MS = 5 * 60 * 1000;         // auto sign-out after 5 min idle
+  const SESSION_KEY = "cmk_session";
+  const INACTIVITY_MS = 5 * 60 * 1000;
   const PAY_URL = "https://dashboard.lipila.io/pay/?id=C417B31870164B2";
   const STAGES = ["Received", "Diagnosing", "Repairing", "Ready for Pickup", "Completed"];
+  const COMMISSION_RATE = 0.20;
+  const NOTIFS_KEY = "cmk_notifications";
 
-  // Shops are loaded from Supabase (see fetchShops). Each is { id, name, pin }.
   let SHOPS = [];
-
-  // ---------- state ----------
   let appointments = [];
   let editId = null;
   let currentFilter = "all";
-  let currentRole = null;   // "admin" | "shop" | null
-  let currentShop = null;   // shop name string, only when currentRole === "shop"
+  let currentRole = null;
+  let currentShop = null;
+  let ADMIN_PIN = "4671";
+  let notifChannel = null;
+  let notifCount = 0;
+  let notificationHistory = [];
 
   // ---------- DOM refs ----------
   const form = document.getElementById("appointmentForm");
@@ -550,33 +658,86 @@
   const shopDropoffList = document.getElementById("shopDropoffList");
   const shopSearchBar = document.getElementById("shopSearchBar");
   const shopViewTitle = document.getElementById("shopViewTitle");
+  const notifBadge = document.getElementById("notifBadge");
 
   const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
   const moonPath = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
-  function showToast(msg) {
+  function showToast(msg, duration = 2400) {
     toast.textContent = msg;
     toast.classList.add("show");
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), duration);
   }
 
-  // ---------- session persistence (stay signed in until logout or 5 min idle) ----------
+  // ---------- Notification System ----------
+  function loadNotificationHistory() {
+    try {
+      const data = localStorage.getItem(NOTIFS_KEY);
+      notificationHistory = data ? JSON.parse(data) : [];
+      notifCount = notificationHistory.filter(n => !n.read).length;
+      updateNotifBadge();
+    } catch (_) { notificationHistory = []; notifCount = 0; }
+  }
+
+  function saveNotificationHistory() {
+    try {
+      localStorage.setItem(NOTIFS_KEY, JSON.stringify(notificationHistory));
+    } catch (_) {}
+  }
+
+  function updateNotifBadge() {
+    if (notifCount > 0) {
+      notifBadge.textContent = notifCount > 99 ? '99+' : notifCount;
+      notifBadge.classList.add('show');
+    } else {
+      notifBadge.classList.remove('show');
+    }
+  }
+
+  function addNotification(title, body, type = 'info', ref = null) {
+    const notif = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title,
+      body,
+      type,
+      ref,
+      read: false,
+      created_at: new Date().toISOString()
+    };
+    notificationHistory.unshift(notif);
+    notifCount++;
+    saveNotificationHistory();
+    updateNotifBadge();
+    return notif;
+  }
+
+  function markNotificationsRead() {
+    notificationHistory.forEach(n => n.read = true);
+    notifCount = 0;
+    saveNotificationHistory();
+    updateNotifBadge();
+  }
+
+  // ---------- Session management ----------
   function saveSession(role, shopName) {
     localStorage.setItem(SESSION_KEY, JSON.stringify({ role, shopName: shopName || null, lastActivity: Date.now() }));
   }
+
   function getSession() {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (_) { return null; }
   }
+
   function touchSession() {
     const session = getSession();
     if (!session) return;
     session.lastActivity = Date.now();
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   }
+
   function clearSession() {
     localStorage.removeItem(SESSION_KEY);
   }
@@ -591,18 +752,20 @@
       }
     }, 15000);
   }
+
   function stopSessionWatcher() {
     if (sessionWatcherId) clearInterval(sessionWatcherId);
     sessionWatcherId = null;
   }
+
   function handleAutoLogout() {
     clearSession();
     stopSessionWatcher();
+    cleanupRealtime();
     setView("client");
     showToast("Signed out after 5 minutes of inactivity");
   }
 
-  // Any real user interaction resets the idle clock, throttled to avoid excess writes.
   let lastActivityWrite = 0;
   function markActivity() {
     if (currentRole !== "admin" && currentRole !== "shop") return;
@@ -615,11 +778,429 @@
     document.addEventListener(evt, markActivity, { passive: true })
   );
 
+  // ---------- Realtime subscriptions ----------
+  function setupRealtime() {
+    cleanupRealtime();
+    
+    notifChannel = supabase
+      .channel('repairs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'repairs'
+        },
+        (payload) => handleRealtimeInsert(payload)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'repairs'
+        },
+        (payload) => handleRealtimeUpdate(payload)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'repairs'
+        },
+        (payload) => handleRealtimeDelete(payload)
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime connected');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.log('Realtime error, will retry...');
+          setTimeout(setupRealtime, 5000);
+        }
+      });
+  }
+
+  function cleanupRealtime() {
+    if (notifChannel) {
+      supabase.removeChannel(notifChannel);
+      notifChannel = null;
+    }
+  }
+
+  function handleRealtimeInsert(payload) {
+    const newAppt = payload.new;
+    // Check if we already have it
+    if (appointments.some(a => a.id === newAppt.id)) return;
+    appointments.unshift(newAppt);
+    renderAppointments();
+    renderShopManageList();
+    if (currentRole === 'shop' && newAppt.shop === currentShop) {
+      renderShopDropoffs();
+      addNotification('New drop-off', `${newAppt.name} — ${newAppt.repair}`, 'info', newAppt.trackingId);
+      showToast(`New job: ${newAppt.name} — ${newAppt.repair}`, 3000);
+    } else if (currentRole === 'admin') {
+      addNotification('New drop-off', `${newAppt.name} — ${newAppt.repair} at ${newAppt.shop}`, 'info', newAppt.trackingId);
+    }
+    // Show browser notification
+    if (currentRole === 'admin' || (currentRole === 'shop' && newAppt.shop === currentShop)) {
+      sendBrowserNotification('New Repair Job', `${newAppt.name} — ${newAppt.repair}`);
+    }
+  }
+
+  function handleRealtimeUpdate(payload) {
+    const updated = payload.new;
+    const idx = appointments.findIndex(a => a.id === updated.id);
+    if (idx === -1) {
+      appointments.unshift(updated);
+    } else {
+      appointments[idx] = updated;
+    }
+    renderAppointments();
+    renderShopManageList();
+    if (currentRole === 'shop') {
+      renderShopDropoffs();
+      if (updated.shop === currentShop) {
+        addNotification('Job updated', `${updated.name}'s ${updated.repair} is now "${updated.status}"`, 'info', updated.trackingId);
+        sendBrowserNotification('Repair Update', `${updated.name}'s ${updated.repair} is now "${updated.status}"`);
+      }
+    } else if (currentRole === 'admin') {
+      addNotification('Job updated', `${updated.name}'s ${updated.repair} is now "${updated.status}" at ${updated.shop}`, 'info', updated.trackingId);
+    }
+    // Notify customer if status changed
+    if (updated.status === 'Ready for Pickup' || updated.status === 'Completed') {
+      notifyCustomer(updated.trackingId, 'Repair Update', `Your ${updated.repair} is now "${updated.status}".`);
+    }
+  }
+
+  function handleRealtimeDelete(payload) {
+    const deleted = payload.old;
+    appointments = appointments.filter(a => a.id !== deleted.id);
+    renderAppointments();
+    renderShopManageList();
+    if (currentRole === 'shop' && deleted.shop === currentShop) {
+      renderShopDropoffs();
+    }
+  }
+
+  // ---------- Browser notifications ----------
+  async function sendBrowserNotification(title, body) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(title, {
+          body: body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          vibrate: [200, 100, 200],
+          data: { url: location.href }
+        });
+      } catch (_) {
+        // Fallback
+        new Notification(title, { body });
+      }
+    }
+  }
+
+  // ---------- Push notifications ----------
+  const VAPID_PUBLIC_KEY = 'BNVoX5SM_T80_m345BWTuxDlBvlDeJvST9kPlu_saQ5sFwN8KKN7X1V_QIiT3-IGMhGCmbrtOoxURD0msLGE_Rc';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  async function subscribeToPush(subscriberType, subscriberRef) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showToast("Push notifications aren't supported on this device/browser");
+      return false;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast("Notification permission was denied");
+        return false;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+      const subJson = sub.toJSON();
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth,
+        subscriber_type: subscriberType,
+        subscriber_ref: subscriberRef,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'endpoint' });
+      if (error) { console.error(error); showToast("Error saving your notification subscription"); return false; }
+      showToast("Notifications enabled");
+      return true;
+    } catch (err) {
+      console.error(err);
+      showToast("Couldn't enable notifications");
+      return false;
+    }
+  }
+
+  async function sendPushNotification(subscriberType, subscriberRef, title, body, url) {
+    try {
+      await supabase.functions.invoke('send-push', {
+        body: { subscriber_type: subscriberType, subscriber_ref: subscriberRef, title, body, url: url || '#staff' }
+      });
+    } catch (err) {
+      console.error('Push send failed (non-fatal):', err);
+    }
+  }
+
+  function notifyAdminNewJob(appt) {
+    sendPushNotification('admin', 'admin', 'New drop-off', `${appt.name} — ${appt.repair} at ${appt.shop}`, '#staff');
+  }
+
+  function notifyOnStatusChange(appt, newStatus) {
+    if (appt.shop) {
+      sendPushNotification('shop', appt.shop, 'Job status updated', `${appt.name}'s ${appt.repair} is now "${newStatus}"`, '#staff');
+    }
+    notifyCustomer(appt.trackingId, "Repair update", `Your ${appt.repair} is now "${newStatus}".`);
+  }
+
+  function notifyCustomer(trackingId, title, body) {
+    sendPushNotification('customer', trackingId, title, body, ' ');
+  }
+
+  // ---------- Helper functions ----------
   function populateShopSelects() {
     jobShopSelect.innerHTML = SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
     shopFilterSelect.innerHTML = `<option value="all">All shops</option>` + SHOPS.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join("");
   }
 
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+  function formatDisplayDate(dateStr) {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function isCurrentMonth(dateStr) {
+    const today = new Date(); const d = new Date(dateStr + "T00:00:00");
+    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+  }
+
+  function isToday(dateStr) { return dateStr === new Date().toISOString().slice(0, 10); }
+
+  function makeTrackingId() {
+    const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    let code = "";
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return "CMK-" + code;
+  }
+
+  function findById(id) { return appointments.find(a => a.id === id); }
+
+  // ---------- Supabase CRUD ----------
+  async function fetchAppointments() {
+    const { data, error } = await supabase.from('repairs').select('*').order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+
+  async function addAppointment(record) {
+    const { data, error } = await supabase.from('repairs').insert([record]).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function updateAppointment(id, updates) {
+    const { data, error } = await supabase.from('repairs').update(updates).eq('id', id).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function deleteAppointment(id) {
+    const { error } = await supabase.from('repairs').delete().eq('id', id);
+    if (error) { console.error(error); return false; }
+    return true;
+  }
+
+  async function fetchShops() {
+    const { data, error } = await supabase.from('shops').select('*').order('name', { ascending: true });
+    if (error) { console.error(error); return []; }
+    return data || [];
+  }
+
+  async function addShopDB(record) {
+    const { data, error } = await supabase.from('shops').insert([record]).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function updateShopDB(id, updates) {
+    const { data, error } = await supabase.from('shops').update(updates).eq('id', id).select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  async function deleteShopDB(id) {
+    const { error } = await supabase.from('shops').delete().eq('id', id);
+    if (error) { console.error(error); return false; }
+    return true;
+  }
+
+  async function fetchAdminPin() {
+    const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').maybeSingle();
+    if (error) { console.error(error); return null; }
+    return data ? data.value : null;
+  }
+
+  async function updateAdminPinDB(newPin) {
+    const { data, error } = await supabase.from('app_settings').update({ value: newPin }).eq('key', 'admin_pin').select();
+    if (error) { console.error(error); return null; }
+    return data ? data[0] : null;
+  }
+
+  // ---------- Theme ----------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.getElementById("themeIcon").innerHTML = theme === "dark" ? sunPath : moonPath;
+  }
+
+  async function initTheme() {
+    let theme = localStorage.getItem(THEME_KEY);
+    if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    applyTheme(theme);
+  }
+
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+
+  // ---------- View management ----------
+  const adminView = document.getElementById("adminView");
+  const shopDropoffView = document.getElementById("shopDropoffView");
+  const clientView = document.getElementById("clientView");
+  const staffModal = document.getElementById("staffModal");
+  const staffPinForm = document.getElementById("staffPinForm");
+  const staffPinInput = document.getElementById("staffPinInput");
+
+  function setView(role) {
+    currentRole = role;
+    const isAdmin = role === "admin";
+    const isShop = role === "shop";
+    const isStaff = isAdmin || isShop;
+
+    adminView.style.display = isAdmin ? "" : "none";
+    shopDropoffView.style.display = isShop ? "" : "none";
+    clientView.style.display = isStaff ? "none" : "";
+
+    document.getElementById("exportBtn").style.display = isAdmin ? "" : "none";
+    document.getElementById("adminNotifyBtn").style.display = isAdmin ? "" : "none";
+    document.getElementById("exitStaffBtn").style.display = isStaff ? "" : "none";
+    document.querySelector(".staff-footer").style.display = isStaff ? "none" : "";
+
+    if (isAdmin) {
+      brandSub.textContent = "Job board & revenue tracker — all shops";
+      refreshAdminNotifyBtnState();
+      setupRealtime();
+    } else if (isShop) {
+      brandSub.textContent = `Drop-off desk — ${currentShop}`;
+      shopViewTitle.textContent = currentShop;
+      refreshShopNotifyBtnState();
+      setupRealtime();
+    } else {
+      brandSub.textContent = "Repair status, made simple";
+      currentShop = null;
+      cleanupRealtime();
+    }
+    history.replaceState(null, "", isStaff ? "#staff" : " ");
+  }
+
+  function openStaffModal() {
+    staffModal.style.display = "flex";
+    staffPinInput.value = "";
+    setTimeout(() => staffPinInput.focus(), 50);
+  }
+
+  function closeStaffModal() { staffModal.style.display = "none"; }
+
+  document.getElementById("staffLoginLink").addEventListener("click", openStaffModal);
+  document.getElementById("staffModalCancel").addEventListener("click", closeStaffModal);
+  staffModal.addEventListener("click", (e) => { if (e.target === staffModal) closeStaffModal(); });
+
+  staffPinForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pin = staffPinInput.value;
+    const matchedShop = SHOPS.find(s => s.pin === pin);
+    if (pin === ADMIN_PIN) {
+      closeStaffModal();
+      setView("admin");
+      renderAppointments();
+      saveSession("admin", null);
+      startSessionWatcher();
+      showToast("Welcome back");
+    } else if (matchedShop) {
+      currentShop = matchedShop.name;
+      closeStaffModal();
+      setView("shop");
+      document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
+      renderShopDropoffs();
+      saveSession("shop", matchedShop.name);
+      startSessionWatcher();
+      showToast(`Signed in — ${matchedShop.name}`);
+    } else {
+      showToast("Incorrect PIN");
+      staffPinInput.value = "";
+      staffPinInput.focus();
+    }
+  });
+
+  document.getElementById("exitStaffBtn").addEventListener("click", () => {
+    clearSession();
+    stopSessionWatcher();
+    cleanupRealtime();
+    setView("client");
+    showToast("Signed out");
+  });
+
+  // ---------- Admin PIN change ----------
+  const adminPinForm = document.getElementById("adminPinForm");
+  adminPinForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const currentInput = document.getElementById("currentAdminPin");
+    const newInput = document.getElementById("newAdminPin");
+    const confirmInput = document.getElementById("confirmAdminPin");
+    const current = currentInput.value.trim();
+    const next = newInput.value.trim();
+    const confirmVal = confirmInput.value.trim();
+
+    if (current !== ADMIN_PIN) { showToast("Current PIN is incorrect"); return; }
+    if (!next || next.length < 4) { showToast("New PIN should be at least 4 characters"); return; }
+    if (next !== confirmVal) { showToast("New PIN and confirmation don't match"); return; }
+    if (SHOPS.some(s => s.pin === next)) { showToast("That PIN is already used by a shop"); return; }
+
+    const updated = await updateAdminPinDB(next);
+    if (updated) {
+      ADMIN_PIN = next;
+      adminPinForm.reset();
+      showToast("Admin PIN updated");
+    } else {
+      showToast("Error updating PIN");
+    }
+  });
+
+  // ---------- Shop management ----------
   const shopManageForm = document.getElementById("shopManageForm");
   const shopManageList = document.getElementById("shopManageList");
   let editingShopId = null;
@@ -738,211 +1319,7 @@
     }
   }
 
-  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-  function formatDisplayDate(dateStr) {
-    if (!dateStr) return "—";
-    const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-  }
-  function isCurrentMonth(dateStr) {
-    const today = new Date(); const d = new Date(dateStr + "T00:00:00");
-    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-  }
-  function isToday(dateStr) { return dateStr === new Date().toISOString().slice(0, 10); }
-  function uid() { return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-  function makeTrackingId() {
-    const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-    let code = "";
-    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return "CMK-" + code;
-  }
-
-  // ---------- Supabase CRUD ----------
-  async function fetchAppointments() {
-    const { data, error } = await supabase.from('repairs').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); return []; }
-    return data || [];
-  }
-
-  async function addAppointment(record) {
-    const { data, error } = await supabase.from('repairs').insert([record]).select();
-    if (error) { console.error(error); return null; }
-    return data ? data[0] : null;
-  }
-
-  async function updateAppointment(id, updates) {
-    const { data, error } = await supabase.from('repairs').update(updates).eq('id', id).select();
-    if (error) { console.error(error); return null; }
-    return data ? data[0] : null;
-  }
-
-  async function deleteAppointment(id) {
-    const { error } = await supabase.from('repairs').delete().eq('id', id);
-    if (error) { console.error(error); return false; }
-    return true;
-  }
-
-  // ---------- Supabase CRUD: shops ----------
-  async function fetchShops() {
-    const { data, error } = await supabase.from('shops').select('*').order('name', { ascending: true });
-    if (error) { console.error(error); return []; }
-    return data || [];
-  }
-
-  async function addShopDB(record) {
-    const { data, error } = await supabase.from('shops').insert([record]).select();
-    if (error) { console.error(error); return null; }
-    return data ? data[0] : null;
-  }
-
-  async function updateShopDB(id, updates) {
-    const { data, error } = await supabase.from('shops').update(updates).eq('id', id).select();
-    if (error) { console.error(error); return null; }
-    return data ? data[0] : null;
-  }
-
-  async function deleteShopDB(id) {
-    const { error } = await supabase.from('shops').delete().eq('id', id);
-    if (error) { console.error(error); return false; }
-    return true;
-  }
-
-  // ---------- Supabase CRUD: app settings (admin PIN) ----------
-  async function fetchAdminPin() {
-    const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_pin').maybeSingle();
-    if (error) { console.error(error); return null; }
-    return data ? data.value : null;
-  }
-
-  async function updateAdminPinDB(newPin) {
-    const { data, error } = await supabase.from('app_settings').update({ value: newPin }).eq('key', 'admin_pin').select();
-    if (error) { console.error(error); return null; }
-    return data ? data[0] : null;
-  }
-
-  // ---------- theme ----------
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    document.getElementById("themeIcon").innerHTML = theme === "dark" ? sunPath : moonPath;
-  }
-  async function initTheme() {
-    let theme = localStorage.getItem(THEME_KEY);
-    if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    applyTheme(theme);
-  }
-  document.getElementById("themeToggle").addEventListener("click", () => {
-    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-    applyTheme(next);
-    localStorage.setItem(THEME_KEY, next);
-  });
-
-  // ---------- staff-gated view ----------
-  let ADMIN_PIN = "4671"; // overwritten at init from app_settings, this is just a pre-load fallback
-  const adminView = document.getElementById("adminView");
-  const shopDropoffView = document.getElementById("shopDropoffView");
-  const clientView = document.getElementById("clientView");
-  const staffModal = document.getElementById("staffModal");
-  const staffPinForm = document.getElementById("staffPinForm");
-  const staffPinInput = document.getElementById("staffPinInput");
-
-  function setView(role) {
-    currentRole = role;
-    const isAdmin = role === "admin";
-    const isShop = role === "shop";
-    const isStaff = isAdmin || isShop;
-
-    adminView.style.display = isAdmin ? "" : "none";
-    shopDropoffView.style.display = isShop ? "" : "none";
-    clientView.style.display = isStaff ? "none" : "";
-
-    document.getElementById("exportBtn").style.display = isAdmin ? "" : "none";
-    document.getElementById("exitStaffBtn").style.display = isStaff ? "" : "none";
-    document.querySelector(".staff-footer").style.display = isStaff ? "none" : "";
-
-    if (isAdmin) {
-      brandSub.textContent = "Job board & revenue tracker — all shops";
-    } else if (isShop) {
-      brandSub.textContent = `Drop-off desk — ${currentShop}`;
-      shopViewTitle.textContent = currentShop;
-    } else {
-      brandSub.textContent = "Repair status, made simple";
-      currentShop = null;
-    }
-    history.replaceState(null, "", isStaff ? "#staff" : " ");
-  }
-
-  function openStaffModal() {
-    staffModal.style.display = "flex";
-    staffPinInput.value = "";
-    setTimeout(() => staffPinInput.focus(), 50);
-  }
-  function closeStaffModal() { staffModal.style.display = "none"; }
-
-  document.getElementById("staffLoginLink").addEventListener("click", openStaffModal);
-  document.getElementById("staffModalCancel").addEventListener("click", closeStaffModal);
-  staffModal.addEventListener("click", (e) => { if (e.target === staffModal) closeStaffModal(); });
-
-  staffPinForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const pin = staffPinInput.value;
-    const matchedShop = SHOPS.find(s => s.pin === pin);
-    if (pin === ADMIN_PIN) {
-      closeStaffModal();
-      setView("admin");
-      renderAppointments();
-      saveSession("admin", null);
-      startSessionWatcher();
-      showToast("Welcome back");
-    } else if (matchedShop) {
-      currentShop = matchedShop.name;
-      closeStaffModal();
-      setView("shop");
-      document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
-      renderShopDropoffs();
-      saveSession("shop", matchedShop.name);
-      startSessionWatcher();
-      showToast(`Signed in — ${matchedShop.name}`);
-    } else {
-      showToast("Incorrect PIN");
-      staffPinInput.value = "";
-      staffPinInput.focus();
-    }
-  });
-
-  document.getElementById("exitStaffBtn").addEventListener("click", () => {
-    clearSession();
-    stopSessionWatcher();
-    setView("client");
-    showToast("Signed out");
-  });
-
-  // ---------- admin PIN change ----------
-  const adminPinForm = document.getElementById("adminPinForm");
-  adminPinForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const currentInput = document.getElementById("currentAdminPin");
-    const newInput = document.getElementById("newAdminPin");
-    const confirmInput = document.getElementById("confirmAdminPin");
-    const current = currentInput.value.trim();
-    const next = newInput.value.trim();
-    const confirmVal = confirmInput.value.trim();
-
-    if (current !== ADMIN_PIN) { showToast("Current PIN is incorrect"); return; }
-    if (!next || next.length < 4) { showToast("New PIN should be at least 4 characters"); return; }
-    if (next !== confirmVal) { showToast("New PIN and confirmation don't match"); return; }
-    if (SHOPS.some(s => s.pin === next)) { showToast("That PIN is already used by a shop"); return; }
-
-    const updated = await updateAdminPinDB(next);
-    if (updated) {
-      ADMIN_PIN = next;
-      adminPinForm.reset();
-      showToast("Admin PIN updated");
-    } else {
-      showToast("Error updating PIN — check the app_settings table exists in Supabase");
-    }
-  });
-
-  // ---------- metrics ----------
+  // ---------- Metrics ----------
   function updateAllMetrics() {
     const completed = appointments.filter(a => a.status === "Completed");
     const pending = appointments.filter(a => a.status !== "Completed");
@@ -962,7 +1339,7 @@
     document.getElementById("totalCountText").textContent = `${appointments.length} job${appointments.length === 1 ? '' : 's'} on record`;
   }
 
-  // ---------- render ----------
+  // ---------- Render functions ----------
   function statusBadgeClass(status) {
     if (status === "Completed") return "background: var(--accent-soft); color: var(--accent);";
     if (status === "Ready for Pickup") return "background: var(--blue-soft); color: var(--blue);";
@@ -1035,7 +1412,7 @@
     tbody.querySelectorAll('.track-id').forEach(el => el.addEventListener('click', handleCopyId));
   }
 
-  // ---------- shop drop-off view (single shop, staff-facing) ----------
+  // ---------- Shop drop-off view ----------
   function renderShopDropoffs() {
     if (!currentShop) return;
     let shopJobs = appointments.filter(a => a.shop === currentShop)
@@ -1050,6 +1427,8 @@
         (a.trackingId || '').toLowerCase().includes(term)
       );
     }
+
+    updateShopCommission();
 
     if (shopJobs.length === 0) {
       shopDropoffList.innerHTML = `<div class="result-card">
@@ -1070,10 +1449,21 @@
         <div class="result-details">
           <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value" style="${statusBadgeClass(appt.status)}; display:inline-block; padding:3px 10px; border-radius:40px;">${appt.status}</div></div>
           <div class="detail-item"><div class="detail-label">Amount</div><div class="detail-value">${appt.paid ? `<span class="paid-badge">Paid</span>` : `ZMW ${parseFloat(appt.amount).toFixed(2)}`}</div></div>
+          <div class="detail-item"><div class="detail-label">Your commission (20%)</div><div class="detail-value">ZMW ${(parseFloat(appt.amount || 0) * COMMISSION_RATE).toFixed(2)}${appt.paid ? '' : ' (pending)'}</div></div>
         </div>
       </div>`).join("");
 
     shopDropoffList.querySelectorAll('.track-id').forEach(el => el.addEventListener('click', handleCopyId));
+  }
+
+  function updateShopCommission() {
+    if (!currentShop) return;
+    const earned = appointments.filter(a => a.shop === currentShop && a.status === "Completed" && a.paid);
+    const totalCommission = earned.reduce((s, a) => s + parseFloat(a.amount || 0) * COMMISSION_RATE, 0);
+    const monthCommission = earned.filter(a => isCurrentMonth(a.day)).reduce((s, a) => s + parseFloat(a.amount || 0) * COMMISSION_RATE, 0);
+    document.getElementById("shopCommissionTotal").textContent = `ZMW ${totalCommission.toFixed(2)}`;
+    document.getElementById("shopCommissionMonth").textContent = `ZMW ${monthCommission.toFixed(2)}`;
+    document.getElementById("shopCommissionJobs").textContent = `${earned.length} paid job${earned.length === 1 ? '' : 's'} total`;
   }
 
   shopSearchBar.addEventListener("input", renderShopDropoffs);
@@ -1101,13 +1491,13 @@
       shopDropoffForm.reset();
       document.getElementById("sd_day").value = new Date().toISOString().slice(0, 10);
       renderShopDropoffs();
+      notifyAdminNewJob(created);
     } else {
       showToast("Error registering client");
     }
   });
 
-  function findById(id) { return appointments.find(a => a.id === id); }
-
+  // ---------- Event handlers ----------
   function handleCopyId(e) {
     const id = e.currentTarget.getAttribute('data-id');
     if (navigator.clipboard) navigator.clipboard.writeText(id).then(() => showToast(`Copied ${id}`));
@@ -1155,6 +1545,7 @@
       if (appt) appt.status = newStatus;
       renderAppointments();
       showToast(`Status updated to "${newStatus}"`);
+      notifyOnStatusChange(updated, newStatus);
     } else {
       showToast("Error updating status");
     }
@@ -1172,6 +1563,7 @@
       if (idx > -1) appointments[idx] = updated;
       renderAppointments();
       showToast(`Payment confirmed — ${appt.trackingId} is now closed`);
+      notifyCustomer(appt.trackingId, "Payment confirmed", `Thanks! We've confirmed your payment of ZMW ${parseFloat(appt.amount).toFixed(2)} for your ${appt.repair}.`);
     } else {
       showToast("Error confirming payment");
     }
@@ -1186,6 +1578,7 @@
     form.reset();
     document.getElementById("status").value = "Received";
   }
+
   cancelEditBtn.addEventListener("click", resetFormMode);
 
   form.addEventListener("submit", async (e) => {
@@ -1203,33 +1596,46 @@
       return;
     }
 
-    if (editId) {
-      const updates = { name, phone, repair, day, amount, status, shop };
-      const updated = await updateAppointment(editId, updates);
-      if (updated) {
-        const idx = appointments.findIndex(a => a.id === editId);
-        if (idx > -1) appointments[idx] = updated;
-        showToast("Job updated");
-        resetFormMode();
-        renderAppointments();
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving...";
+
+    try {
+      if (editId) {
+        const updates = { name, phone, repair, day, amount, status, shop };
+        const updated = await updateAppointment(editId, updates);
+        if (updated) {
+          const idx = appointments.findIndex(a => a.id === editId);
+          if (idx > -1) appointments[idx] = updated;
+          showToast("Job updated");
+          resetFormMode();
+          renderAppointments();
+        } else {
+          showToast("Error updating job");
+        }
       } else {
-        showToast("Error updating job");
+        const trackingId = makeTrackingId();
+        const newRecord = { trackingId, name, phone, repair, day, amount, status, shop };
+        const created = await addAppointment(newRecord);
+        if (created) {
+          appointments.unshift(created);
+          showToast(`Job saved — give the client ID ${trackingId}`);
+          resetFormMode();
+          renderAppointments();
+          notifyAdminNewJob(created);
+        } else {
+          showToast("Error saving job");
+        }
       }
-    } else {
-      const trackingId = makeTrackingId();
-      const newRecord = { trackingId, name, phone, repair, day, amount, status, shop };
-      const created = await addAppointment(newRecord);
-      if (created) {
-        appointments.unshift(created);
-        showToast(`Job saved — give the client ID ${trackingId}`);
-        resetFormMode();
-        renderAppointments();
-      } else {
-        showToast("Error saving job");
-      }
+    } catch (err) {
+      showToast("An error occurred. Please try again.");
+      console.error(err);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = editId ? "Save changes" : "Save job";
     }
   });
 
+  // ---------- Filter chips ----------
   document.querySelectorAll(".filter-chip").forEach(chip => {
     chip.addEventListener("click", () => {
       document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
@@ -1238,6 +1644,7 @@
       renderAppointments();
     });
   });
+
   searchInput.addEventListener("input", renderAppointments);
   shopFilterSelect.addEventListener("change", renderAppointments);
 
@@ -1257,7 +1664,7 @@
     showToast("Exported CSV");
   });
 
-  // ---------- client tracking ----------
+  // ---------- Client tracking ----------
   const trackForm = document.getElementById("trackForm");
   const trackResults = document.getElementById("trackResults");
 
@@ -1339,8 +1746,28 @@
           <div class="detail-item"><div class="detail-label">Estimated cost</div><div class="detail-value">ZMW ${parseFloat(appt.amount).toFixed(2)}</div></div>
         </div>
         ${paymentSection}
+        <div class="notify-row">
+          <button type="button" class="notify-me-btn" id="notifyMeBtn_${appt.trackingId}" data-track-id="${appt.trackingId}">🔔 Notify me of updates</button>
+        </div>
       </div>`;
     }).join("");
+
+    trackResults.querySelectorAll('.notify-me-btn').forEach(btn => btn.addEventListener('click', handleCustomerNotifyMe));
+  }
+
+  async function handleCustomerNotifyMe(e) {
+    const btn = e.currentTarget;
+    const trackId = btn.getAttribute('data-track-id');
+    btn.disabled = true;
+    btn.textContent = "Enabling…";
+    const ok = await subscribeToPush('customer', trackId);
+    if (ok) {
+      btn.textContent = "✓ You'll be notified";
+      btn.classList.add('subscribed');
+    } else {
+      btn.disabled = false;
+      btn.textContent = "🔔 Notify me of updates";
+    }
   }
 
   trackForm.addEventListener("submit", (e) => {
@@ -1350,21 +1777,65 @@
     renderTrackResults(results, q);
   });
 
-  // ---------- init ----------
+  // ---------- Notification button state ----------
+  async function refreshAdminNotifyBtnState() {
+    const btn = document.getElementById('adminNotifyBtn');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { btn.textContent = "🔔 Notifications on"; btn.classList.add('subscribed'); }
+      else { btn.textContent = "🔔 Notifications"; btn.classList.remove('subscribed'); }
+    } catch (_) {}
+  }
+
+  async function refreshShopNotifyBtnState() {
+    const btn = document.getElementById('shopNotifyBtn');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { btn.textContent = "🔔 Alerts on"; }
+      else { btn.textContent = "🔔 Enable alerts"; }
+    } catch (_) {}
+  }
+
+  document.getElementById('adminNotifyBtn').addEventListener('click', async () => {
+    const ok = await subscribeToPush('admin', 'admin');
+    if (ok) refreshAdminNotifyBtnState();
+  });
+
+  document.getElementById('shopNotifyBtn').addEventListener('click', async () => {
+    if (!currentShop) return;
+    const ok = await subscribeToPush('shop', currentShop);
+    if (ok) refreshShopNotifyBtnState();
+  });
+
+  // Click notification badge to show history
+  document.getElementById('adminNotifyBtn').addEventListener('click', function(e) {
+    // Toggle dropdown - we'll keep it simple, just mark as read when clicked
+    if (notifCount > 0) {
+      markNotificationsRead();
+      showToast(`Marked ${notifCount} notifications as read`);
+    }
+  });
+
+  // ---------- Init ----------
   (async function init() {
     await initTheme();
-    // load admin PIN and shops first so PIN checks and dropdowns are ready
+    loadNotificationHistory();
+    
     const dbAdminPin = await fetchAdminPin();
     if (dbAdminPin) ADMIN_PIN = dbAdminPin;
+    
     SHOPS = await fetchShops();
     populateShopSelects();
     renderShopManageList();
-    // load appointments from Supabase
+    
     const data = await fetchAppointments();
     if (data.length) {
       appointments = data;
     } else {
-      // fallback to localStorage if Supabase empty (or first run)
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
         try {
@@ -1375,7 +1846,6 @@
     renderAppointments();
     renderShopManageList();
 
-    // restore a still-valid staff session (survives refresh, expires after 5 min idle)
     const session = getSession();
     let restored = false;
     if (session && (Date.now() - session.lastActivity) <= INACTIVITY_MS) {
